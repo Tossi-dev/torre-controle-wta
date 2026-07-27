@@ -243,7 +243,7 @@ function saveTask(k,ctx){
   }];
   tskSync('busy','salvando…');
   fetch(SB_URL+'/rest/v1/task',{method:'POST',
-    headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json',
+    headers:{apikey:SB_KEY,Authorization:'Bearer '+((window.WAUTH&&WAUTH.token())||SB_KEY),'Content-Type':'application/json',
       'Prefer':'resolution=merge-duplicates,return=minimal'},
     body:JSON.stringify(body)})
   .then(function(r){ if(r.ok) tskSync('ok','salvo'); else tskSync('err','erro ao salvar ('+r.status+')'); })
@@ -253,7 +253,7 @@ function saveTask(k,ctx){
 function loadTasks(cb){
   tskSync('busy','carregando…');
   fetch(SB_URL+'/rest/v1/task?select=item_key,status,responsavel,data_retorno,nota',
-    {headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
+    {headers:{apikey:SB_KEY,Authorization:'Bearer '+((window.WAUTH&&WAUTH.token())||SB_KEY)}})
   .then(function(r){ return r.ok?r.json():Promise.reject(r.status); })
   .then(function(rows){
     (rows||[]).forEach(function(t){ window.TASKS[t.item_key]={status:t.status,responsavel:t.responsavel,data_retorno:t.data_retorno,nota:t.nota}; });
@@ -321,4 +321,111 @@ function doExport(){
 (function(){
   try{ renderTarefas(); bindTarefas(); loadTasks(renderTarefas); }catch(e){ console.error('F2 tarefas',e); }
   var be=document.getElementById('btn_export'); if(be&&!be.__wired){ be.__wired=true; be.addEventListener('click',doExport); }
+})();
+
+// ================================================================
+// F3 — gate por papel (área Dados só admin) + chip de usuário/sair
+// ================================================================
+(function(){
+  try{
+    var u=(window.WAUTH&&WAUTH.user&&WAUTH.user())||null;
+    if(!u) return; // login desligado (painel público): mostra tudo, sem chip
+    var prof=(window.WAUTH&&WAUTH.profile&&WAUTH.profile())||null;
+    var papel=prof&&prof.papel;
+    // área Dados só para admin
+    if(papel!=='admin'){
+      var td=document.querySelector('.tab[data-v="dados"]'); if(td) td.style.display='none';
+      var vd=document.getElementById('v-dados'); if(vd) vd.style.display='none';
+    }
+    // chip de usuário + Sair na barra de topo
+    var right=document.querySelector('.appbar .right');
+    if(right&&!document.getElementById('usr_chip')){
+      var c=document.createElement('div'); c.className='usr-chip'; c.id='usr_chip';
+      var papelTxt=papel?(' · '+papel):'';
+      c.innerHTML='<span class="em">'+escH(u.email||'')+escH(papelTxt)+'</span><button class="out" id="usr_out">Sair</button>';
+      right.appendChild(c);
+      document.getElementById('usr_out').addEventListener('click',function(){
+        if(window.WAUTH) WAUTH.logout().then(function(){ location.reload(); }); else location.reload();
+      });
+    }
+  }catch(e){ console.error('F3 gate papel',e); }
+})();
+
+// ================================================================
+// Dados — planilha viva (link+embed) + lançamento rápido
+// ================================================================
+(function(){
+  var LC_SRV=['PCMSO','PGR','LTCAT','psicossocial','Treinamento','Gestão','Adendo','PPP','CAT','PCA','Consultoria','Ordem de Serviço','Outro'];
+  var LC_VEND=['—','Sidney','Bruna','Izabelle','Renata','Graziele','Savio'];
+  function authHdr(json){ var h={apikey:SB_KEY, Authorization:'Bearer '+((window.WAUTH&&WAUTH.token())||SB_KEY)}; if(json) h['Content-Type']='application/json'; return h; }
+  function opt(list,el){ if(!el)return; el.innerHTML=list.map(function(o){return '<option>'+escH(o)+'</option>';}).join(''); }
+
+  // ---- planilha viva (config) ----
+  function gsEmbedUrl(u){ try{ if(/docs\.google\.com\/spreadsheets/.test(u)) return u.replace(/\/(edit|htmlview|view)[^]*$/,'/preview'); }catch(e){} return u; }
+  function renderGs(url){
+    var row=document.getElementById('gs_url'), act=document.getElementById('gs_actions'), emb=document.getElementById('gs_embed'), open=document.getElementById('gs_open');
+    if(!row) return;
+    if(url){ row.value=url; if(act) act.hidden=false; if(open) open.href=url;
+      if(emb){ emb.hidden=false; emb.innerHTML='<iframe src="'+escH(gsEmbedUrl(url))+'" loading="lazy"></iframe>'; } }
+    else { if(act) act.hidden=true; if(emb){ emb.hidden=true; emb.innerHTML=''; } }
+  }
+  function loadGs(){
+    fetch(SB_URL+'/rest/v1/config?select=valor&chave=eq.planilha_url',{headers:authHdr(false)})
+      .then(function(r){ return r.ok?r.json():[]; })
+      .then(function(rows){ var v=rows&&rows[0]&&rows[0].valor; if(v) renderGs(v); }).catch(function(){});
+  }
+  function saveGs(url){
+    return fetch(SB_URL+'/rest/v1/config',{method:'POST',
+      headers:Object.assign(authHdr(true),{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+      body:JSON.stringify([{chave:'planilha_url', valor:url}])});
+  }
+
+  // ---- lançamento ----
+  function renderLanc(rows){
+    var tb=document.getElementById('lanc_list'); if(!tb)return;
+    if(!rows||!rows.length){ tb.innerHTML='<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Nenhum lançamento ainda.</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(r){
+      return '<tr><td class="cli">'+escH(r.cliente||'')+'</td><td class="srv">'+escH(r.servico||'')+'</td>'
+        +'<td class="n">'+(r.valor!=null?brlF(r.valor):'-')+'</td><td>'+escH((r.vendedor&&r.vendedor!=='—')?r.vendedor:'')+'</td></tr>';
+    }).join('');
+  }
+  function loadLanc(){
+    fetch(SB_URL+'/rest/v1/lancamento?select=cliente,servico,valor,vendedor,data,status&order=criado.desc&limit=30',{headers:authHdr(false)})
+      .then(function(r){ return r.ok?r.json():[]; }).then(renderLanc).catch(function(){ renderLanc([]); });
+  }
+  function saveLanc(obj){
+    return fetch(SB_URL+'/rest/v1/lancamento',{method:'POST',
+      headers:Object.assign(authHdr(true),{'Prefer':'return=minimal'}), body:JSON.stringify([obj])});
+  }
+
+  // ---- init ----
+  opt(LC_SRV, document.getElementById('lc_srv'));
+  opt(LC_VEND, document.getElementById('lc_vend'));
+  var gsSave=document.getElementById('gs_save');
+  if(gsSave&&!gsSave.__w){ gsSave.__w=1; gsSave.addEventListener('click',function(){
+    var u=(document.getElementById('gs_url').value||'').trim(); if(!u) return;
+    gsSave.disabled=true; saveGs(u).then(function(){ renderGs(u); }).catch(function(){}).then(function(){ gsSave.disabled=false; });
+  }); }
+  var gsClear=document.getElementById('gs_clear');
+  if(gsClear&&!gsClear.__w){ gsClear.__w=1; gsClear.addEventListener('click',function(){
+    saveGs('').catch(function(){}); renderGs(''); var f=document.getElementById('gs_url'); if(f){ f.value=''; f.focus(); }
+  }); }
+  var lf=document.getElementById('lanc_form');
+  if(lf&&!lf.__w){ lf.__w=1; lf.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('lc_msg'), btn=document.getElementById('lc_btn');
+    var obj={ cliente:(document.getElementById('lc_cli').value||'').trim(),
+      servico:document.getElementById('lc_srv').value,
+      valor:parseFloat(document.getElementById('lc_val').value)||null,
+      data:document.getElementById('lc_data').value||null,
+      vendedor:document.getElementById('lc_vend').value,
+      status:document.getElementById('lc_status').value };
+    if(!obj.cliente){ if(msg){msg.className='lanc-msg err';msg.textContent='Informe o cliente.';} return; }
+    if(obj.vendedor==='—') obj.vendedor=null;
+    if(btn) btn.disabled=true; if(msg){msg.className='lanc-msg';msg.textContent='Salvando…';}
+    saveLanc(obj).then(function(r){ if(btn)btn.disabled=false;
+      if(r.ok){ if(msg){msg.className='lanc-msg ok';msg.textContent='Lançamento salvo.';} lf.reset(); loadLanc(); }
+      else { if(msg){msg.className='lanc-msg err';msg.textContent='Erro ao salvar ('+r.status+').';} }
+    }).catch(function(){ if(btn)btn.disabled=false; if(msg){msg.className='lanc-msg err';msg.textContent='Sem conexão — tente de novo.';} });
+  }); }
+  try{ loadGs(); loadLanc(); }catch(e){ console.error('Dados init',e); }
 })();
