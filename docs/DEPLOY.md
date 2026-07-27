@@ -80,3 +80,37 @@ descomprime). São arquivos `.js` estáticos — a Vercel serve certo (ao contr�
 `vercel.json` agenda `/api/keepalive` 1×/dia (`0 6 * * *`). A função faz um SELECT barato
 no Supabase com a chave **publishable**, gerando atividade e impedindo a pausa automática
 do projeto free (~7 dias ocioso). Conferir nos logs de Cron da Vercel após o 1º disparo.
+
+## F2 — tabela `task` (renovações vencidas viram tarefa)
+
+A aba **Renovações** ganhou a esteira de recuperação: as 300 renovações vencidas de maior
+valor viram tarefas com **status**, **responsável** e **data de retorno**, salvas no
+Supabase. Isso exige a tabela `public.task`. Rode uma vez no **SQL Editor** do Supabase:
+
+```sql
+create table if not exists public.task (
+  item_key     text primary key,          -- cliente_codigo|sintetico (chave estável)
+  tipo         text,
+  cliente      text,
+  servico      text,
+  status       text default 'Aberto',
+  responsavel  text,
+  data_retorno date,
+  nota         text,
+  updated_at   timestamptz default now()
+);
+alter table public.task enable row level security;
+create policy task_sel on public.task for select using (true);
+create policy task_ins on public.task for insert with check (true);
+create policy task_upd on public.task for update using (true) with check (true);
+```
+
+> **Escrita aberta (anon) é intencional nesta fase (MVP).** Sem login ainda (F3), o front
+> grava com a chave **publishable**. Quando o login com papéis entrar (F3), trocar essas
+> políticas por regras por usuário/papel. A chave **secret** continua fora do front.
+
+O front faz **upsert** (`POST /rest/v1/task`, `Prefer: resolution=merge-duplicates`) a cada
+mudança e lê tudo no carregamento (`GET /rest/v1/task`). Se a tabela não existir ou o
+Supabase estiver fora, o painel degrada com elegância: as tarefas aparecem mas ficam só no
+navegador (indicador "offline"). A tela **Dados** exporta tudo em `.xlsx` (SheetJS via CDN,
+sob demanda) — sem backend.

@@ -269,6 +269,8 @@ const entByVal = [...entregues].sort(byValDesc);
 const ren0_365 = ult.filter(r => inRange(r.dias_venc, 0, 365)).sort(byValDesc);
 const renVenc = ult.filter(r => r.dias_venc < 0).sort(byValDesc);
 const ren0_90 = ult.filter(r => inRange(r.dias_venc, 0, 90)).sort(byValDesc);
+// fila completa de renovações vencidas (para tarefas + export) — chave estável por cliente+serviço
+const filaRenov = renVenc.slice(0, 300).map(r => ({ k: r.cliente_codigo + '|' + r.sintetico, cli: pyTitle(String(r.cliente_nome || '').slice(0, 40)), srv: String(r.sintetico || '-'), dias: r.dias_venc, val: round2(r.valor) }));
 
 DATA.drills = {
   h_fat: mkDrill("Faturamento rastreado — origem", "Soma do valor de todas as OS da base (2022–2026).", COLS_OSF, allByVal, rowOSF, `Total: ${mil(DATA.os_total)} OS · ${brl(DATA.faturamento_total)}`),
@@ -302,6 +304,7 @@ F1.drills = {
 };
 
 // ================= saída =================
+F1.fila_renov = filaRenov;
 const payload = { DATA, F1, COM };
 try { mkdirSync(dirname(OUT), { recursive: true }); } catch {}
 writeFileSync(OUT, JSON.stringify(payload));

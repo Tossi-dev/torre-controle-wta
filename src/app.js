@@ -177,3 +177,148 @@ function abrir(id){var d=(window.DRILLS&&window.DRILLS[id])||(window.COM&&COM.dr
 function fechar(){document.getElementById('dov').classList.remove('open');}
 document.getElementById('dov').addEventListener('click',function(e){if(e.target===this)fechar();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+
+// ================================================================
+// F2 — renovações vencidas viram tarefa + exportar planilha (.xlsx)
+// ================================================================
+var SB_URL="https://dopflrttbclvtyvzlysb.supabase.co";
+var SB_KEY="sb_publishable_pwV8JpbQjnpQY2JXh_6qyA_0DygnmuI";
+var TSK_STATUS=['Aberto','Em contato','Renovado','Perdido'];
+var TSK_RESP=['—','Sidney','Bruna','Izabelle','Renata','Graziele','Savio'];
+window.TASKS=window.TASKS||{};
+
+function escH(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function brlF(n){return 'R$ '+new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
+function tskSync(state,msg){var el=document.getElementById('tsk_status');if(!el)return;
+  el.className='tsk-sync'+(state?' '+state:'');el.textContent=msg;}
+function optsFor(list,sel){return list.map(function(o){
+  return '<option'+(o===sel?' selected':'')+'>'+escH(o)+'</option>';}).join('');}
+
+function renderTarefas(){
+  var tb=document.getElementById('r_tarefas'); if(!tb)return;
+  var fila=(window.F1&&F1.fila_renov)||[]; var h='';
+  fila.forEach(function(r){
+    var t=window.TASKS[r.k]||{};
+    var st=t.status||'Aberto', rp=t.responsavel||'—', dt=t.data_retorno||'';
+    h+='<tr data-k="'+escH(r.k)+'" data-st="'+escH(st)+'">'
+      +'<td class="cli">'+escH(r.cli)+'</td>'
+      +'<td class="srv">'+escH(r.srv)+'</td>'
+      +'<td><span class="tsk-dias">'+Math.abs(r.dias)+' d</span></td>'
+      +'<td class="n">'+brlF(r.val)+'</td>'
+      +'<td><select class="tsk-ctl tsk-st">'+optsFor(TSK_STATUS,st)+'</select></td>'
+      +'<td><select class="tsk-ctl tsk-rp">'+optsFor(TSK_RESP,rp)+'</select></td>'
+      +'<td><input type="date" class="tsk-ctl tsk-dt" value="'+escH(dt)+'"></td>'
+      +'</tr>';
+  });
+  tb.innerHTML=h;
+}
+
+function bindTarefas(){
+  var tb=document.getElementById('r_tarefas'); if(!tb||tb.__wired)return; tb.__wired=true;
+  tb.addEventListener('change',function(e){
+    var tr=e.target.closest('tr[data-k]'); if(!tr)return;
+    var k=tr.getAttribute('data-k');
+    var fila=(window.F1&&F1.fila_renov)||[], ctx=null;
+    for(var i=0;i<fila.length;i++){if(fila[i].k===k){ctx=fila[i];break;}}
+    var cur=window.TASKS[k]||{};
+    if(e.target.classList.contains('tsk-st')) cur.status=e.target.value;
+    else if(e.target.classList.contains('tsk-rp')) cur.responsavel=e.target.value;
+    else if(e.target.classList.contains('tsk-dt')) cur.data_retorno=e.target.value||null;
+    window.TASKS[k]=cur;
+    if(cur.status) tr.setAttribute('data-st',cur.status);
+    saveTask(k,ctx);
+  });
+}
+
+function saveTask(k,ctx){
+  var cur=window.TASKS[k]||{};
+  var body=[{
+    item_key:k, tipo:'renovacao_vencida',
+    cliente:ctx?ctx.cli:null, servico:ctx?ctx.srv:null,
+    status:cur.status||'Aberto',
+    responsavel:(cur.responsavel&&cur.responsavel!=='—')?cur.responsavel:null,
+    data_retorno:cur.data_retorno||null,
+    nota:cur.nota||null
+  }];
+  tskSync('busy','salvando…');
+  fetch(SB_URL+'/rest/v1/task',{method:'POST',
+    headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json',
+      'Prefer':'resolution=merge-duplicates,return=minimal'},
+    body:JSON.stringify(body)})
+  .then(function(r){ if(r.ok) tskSync('ok','salvo'); else tskSync('err','erro ao salvar ('+r.status+')'); })
+  .catch(function(){ tskSync('err','offline — salvo só neste navegador'); });
+}
+
+function loadTasks(cb){
+  tskSync('busy','carregando…');
+  fetch(SB_URL+'/rest/v1/task?select=item_key,status,responsavel,data_retorno,nota',
+    {headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY}})
+  .then(function(r){ return r.ok?r.json():Promise.reject(r.status); })
+  .then(function(rows){
+    (rows||[]).forEach(function(t){ window.TASKS[t.item_key]={status:t.status,responsavel:t.responsavel,data_retorno:t.data_retorno,nota:t.nota}; });
+    tskSync('ok', (rows&&rows.length?rows.length+' tarefas · ':'')+'sincronizado');
+    if(cb)cb();
+  })
+  .catch(function(){ tskSync('err','offline — mudanças ficam só neste navegador'); if(cb)cb(); });
+}
+
+// ---------- exportar planilha (.xlsx) — SheetJS carregado sob demanda ----------
+function loadXLSX(cb){
+  if(window.XLSX){cb();return;}
+  var s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload=function(){cb();}; s.onerror=function(){cb(new Error('cdn'));};
+  document.head.appendChild(s);
+}
+function doExport(){
+  var btn=document.getElementById('btn_export'), note=document.getElementById('exp_note');
+  if(btn) btn.disabled=true; if(note) note.textContent='Gerando o arquivo…';
+  loadXLSX(function(err){
+    if(err){ if(note) note.textContent='Não consegui carregar o gerador de Excel (sem internet?). Tente de novo.'; if(btn) btn.disabled=false; return; }
+    try{
+      var wb=XLSX.utils.book_new();
+      var resumo=[
+        ['Torre de Controle WTA — exportação'],
+        ['Gerado em', new Date().toLocaleString('pt-BR')],
+        [],
+        ['Indicador','Valor'],
+        ['Faturamento total', DATA.faturamento_total],
+        ['OS totais', DATA.os_total],
+        ['Ticket médio', DATA.ticket_medio],
+        ['Renovações vencidas (em aberto)', F1.renovacao.vencidos],
+        ['Receita recorrente projetada 12m', F1.renovacao.rec12m],
+        ['Valor represado no backlog', F1.backlog.valor],
+        ['OS a realizar', F1.backlog.qtd],
+        ['Clientes sem psicossocial', F1.crosssell.sem_psico],
+        ['OS sem CNPJ', F1.qualidade.sem_cnpj]
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+      var fila=(F1.fila_renov||[]);
+      var rv=[['Cliente','Documento','Vencida há (dias)','Valor (R$)','Status','Responsável','Retorno']];
+      fila.forEach(function(r){var t=window.TASKS[r.k]||{};
+        rv.push([r.cli,r.srv,Math.abs(r.dias),r.val,t.status||'Aberto',(t.responsavel&&t.responsavel!=='—')?t.responsavel:'',t.data_retorno||'']);});
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rv), 'Renovações vencidas');
+      var bk=[['Cliente','Documento','Valor (R$)','Parada há (dias)','Prestador']];
+      (F1.top_bk||[]).forEach(function(r){bk.push([r[0],r[1],r[2],r[3],r[4]?'Sim':'Não']);});
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bk), 'Dinheiro parado');
+      var cs=[['Cliente','Falta','Valor histórico (R$)']];
+      (F1.top_cs||[]).forEach(function(r){cs.push([r[0],r[1],r[2]]);});
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cs), 'Cross-sell');
+      var cm=[['Vendedor','Faturamento (R$)','Contratos','Ticket (R$)','Renov. (%)']];
+      (COM.vendedores||[]).forEach(function(r){cm.push([r[0],r[1],r[2],r[3],r[4]]);});
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cm), 'Comercial');
+      var d=new Date(), pad=function(n){return (n<10?'0':'')+n;};
+      var fn='WTA_Torre_de_Controle_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.xlsx';
+      XLSX.writeFile(wb, fn);
+      if(note) note.textContent='Pronto! Baixado como '+fn+'.';
+    }catch(ex){ if(note) note.textContent='Erro ao gerar a planilha: '+ex.message; }
+    if(btn) btn.disabled=false;
+  });
+}
+
+// ---------- init F2 ----------
+(function(){
+  try{ renderTarefas(); bindTarefas(); loadTasks(renderTarefas); }catch(e){ console.error('F2 tarefas',e); }
+  var be=document.getElementById('btn_export'); if(be&&!be.__wired){ be.__wired=true; be.addEventListener('click',doExport); }
+})();
