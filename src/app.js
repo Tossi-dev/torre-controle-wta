@@ -429,3 +429,82 @@ function doExport(){
   }); }
   try{ loadGs(); loadLanc(); }catch(e){ console.error('Dados init',e); }
 })();
+
+// ================================================================
+// F1 protótipo — gerar documento (ASO) no navegador (docxtemplater)
+// ================================================================
+(function(){
+  function loadDocxLibs(cb){
+    if(window.docxtemplater && window.PizZip){ cb(); return; }
+    var srcs=['https://unpkg.com/pizzip@3.2.0/dist/pizzip.min.js',
+              'https://unpkg.com/docxtemplater@3.69.3/build/docxtemplater.min.js'];
+    var i=0;
+    (function next(){
+      if(i>=srcs.length){ cb(); return; }
+      var s=document.createElement('script'); s.src=srcs[i++];
+      s.onload=next; s.onerror=function(){ cb(new Error('cdn')); };
+      document.head.appendChild(s);
+    })();
+  }
+  function b64ToU8(b64){ var bin=atob(b64), a=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i); return a; }
+  function doGerarDoc(){
+    var btn=document.getElementById('dc_btn'), msg=document.getElementById('dc_msg');
+    if(!window.ASO_TPL_B64 || window.ASO_TPL_B64.indexOf('__ASO_TPL')===0){ if(msg){msg.className='lanc-msg err';msg.textContent='Template não carregado.';} return; }
+    if(btn) btn.disabled=true; if(msg){msg.className='lanc-msg';msg.textContent='Gerando…';}
+    loadDocxLibs(function(err){
+      if(err){ if(msg){msg.className='lanc-msg err';msg.textContent='Não consegui carregar o gerador (sem internet?). Tente de novo.';} if(btn)btn.disabled=false; return; }
+      try{
+        var zip=new PizZip(b64ToU8(window.ASO_TPL_B64));
+        var doc=new window.docxtemplater(zip,{paragraphLoop:true,linebreaks:true});
+        var hj=new Date(), pad=function(n){return(n<10?'0':'')+n;}, ds=pad(hj.getDate())+'/'+pad(hj.getMonth()+1)+'/'+hj.getFullYear();
+        var val=function(id,fb){ var e=document.getElementById(id); return (e&&e.value)?e.value:fb; };
+        doc.render({
+          razao_social:val('dc_emp','—'), cnpj:'12.345.678/0001-90', cnae:'4930-2/02',
+          endereco:'Av. das Indústrias, 1000 - Uberlândia/MG',
+          nome_trabalhador:val('dc_nome','—'), cpf:'123.456.789-00', nascimento:'15/03/1988',
+          cargo:val('dc_cargo','—'), setor:'Operacional', riscos:'Ruído; Vibração de corpo inteiro',
+          tipo_exame:val('dc_tipo','Periódico'), data_exame:ds, exames_complementares:'Audiometria; Acuidade Visual',
+          conclusao:val('dc_concl','APTO para a função'), observacoes:'Uso obrigatório de EPI conforme a função',
+          medico:'Dra. Maria Souza', crm:'CRM-MG 123456', data_emissao:ds
+        });
+        var blob=doc.getZip().generate({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',compression:'DEFLATE'});
+        var url=URL.createObjectURL(blob), a=document.createElement('a');
+        a.href=url; a.download='ASO_'+val('dc_nome','trabalhador').replace(/\s+/g,'_')+'.docx';
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(url); if(a.parentNode)a.parentNode.removeChild(a); },1000);
+        if(msg){msg.className='lanc-msg ok';msg.textContent='ASO gerado e baixado.';}
+      }catch(ex){ if(msg){msg.className='lanc-msg err';msg.textContent='Erro ao gerar: '+(ex&&ex.message||ex);} }
+      if(btn)btn.disabled=false;
+    });
+  }
+  var df=document.getElementById('doc_form');
+  if(df&&!df.__w){ df.__w=1; df.addEventListener('submit',function(e){ e.preventDefault(); doGerarDoc(); }); }
+})();
+
+// ================================================================
+// F3.1 — alertas "precisa de atenção" (calculados dos dados, clicáveis)
+// ================================================================
+(function(){
+  try{
+    var el=document.getElementById('alertas'); if(!el) return;
+    var R=(window.F1&&F1.renovacao)||{}, B=(window.DATA&&DATA.backlog)||{}, X=(window.F1&&F1.crosssell)||{};
+    var A=[];
+    if(R.vencidos) A.push({sev:'crit', v:int(R.vencidos), l:'Renovações vencidas em aberto', h:'Recuperável — priorize por valor.', tab:'renov', drill:'r_venc'});
+    if(R.vence90) A.push({sev:'warn', v:int(R.vence90), l:'Vencem nos próximos 90 dias', h:'Janela pra não perder a renovação.', tab:'renov', drill:'r_90'});
+    if(B.d90) A.push({sev:'serious', v:int(B.d90)+' OS', l:'Paradas há mais de 90 dias', h:brlC(B.valor||0)+' represados no backlog.', tab:'backlog', drill:'b_qtd'});
+    if(X.sem_psico) A.push({sev:'op', v:int(X.sem_psico), l:'Clientes sem psicossocial', h:'Exigência nova — venda esperando contato.', tab:'cross', drill:'x_psico'});
+    if(!A.length){ el.innerHTML='<div class="alerta" style="cursor:default">Tudo em dia por aqui.</div>'; return; }
+    el.innerHTML=A.map(function(a){
+      return '<div class="alerta '+a.sev+'" data-tab="'+escH(a.tab)+'" data-drill="'+escH(a.drill||'')+'">'
+        +'<div class="av">'+escH(String(a.v))+'</div><div class="al">'+escH(a.l)+'</div>'
+        +'<div class="ah">'+escH(a.h)+'</div><div class="ago">ver ▸</div></div>';
+    }).join('');
+    el.querySelectorAll('.alerta[data-tab]').forEach(function(c){
+      c.addEventListener('click',function(){
+        var tab=c.getAttribute('data-tab'), drill=c.getAttribute('data-drill');
+        var tb=document.querySelector('.tab[data-v="'+tab+'"]'); if(tb) tb.click();
+        if(drill){ setTimeout(function(){ try{ abrir(drill); }catch(e){} }, 140); }
+      });
+    });
+  }catch(e){ console.error('F3 alertas',e); }
+})();

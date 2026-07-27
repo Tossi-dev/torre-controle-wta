@@ -1,0 +1,27 @@
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+d = Document()
+t = d.add_heading('ATESTADO DE SAÚDE OCUPACIONAL (ASO)', level=0); t.alignment = WD_ALIGN_PARAGRAPH.CENTER
+p = d.add_paragraph('WTA Medicina do Trabalho'); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+d.add_heading('Empresa', level=2)
+d.add_paragraph('Razão social: {razao_social}')
+d.add_paragraph('CNPJ: {cnpj}    CNAE: {cnae}')
+d.add_paragraph('Endereço: {endereco}')
+d.add_heading('Trabalhador', level=2)
+d.add_paragraph('Nome: {nome_trabalhador}')
+d.add_paragraph('CPF: {cpf}    Nascimento: {nascimento}')
+d.add_paragraph('Cargo: {cargo}    Setor: {setor}')
+d.add_paragraph('Riscos ocupacionais: {riscos}')
+d.add_heading('Exame', level=2)
+d.add_paragraph('Tipo de exame: {tipo_exame}    Data: {data_exame}')
+d.add_paragraph('Exames complementares: {exames_complementares}')
+d.add_heading('Conclusão', level=2)
+d.add_paragraph('Parecer: {conclusao}')
+d.add_paragraph('Observações / restrições: {observacoes}')
+d.add_paragraph('')
+d.add_paragraph('__________________________________________')
+d.add_paragraph('{medico}    {crm}')
+d.add_paragraph('Médico do Trabalho')
+d.add_paragraph('Emitido em {data_emissao} — gerado automaticamente pela Torre de Controle WTA.')
+d.save('template_ASO.docx')
+print('template_ASO.docx criado')
