@@ -331,7 +331,7 @@ function doExport(){
 
 // ---------- init F2 ----------
 (function(){
-  try{ renderTarefas(); bindTarefas(); loadTasks(renderTarefas); }catch(e){ console.error('F2 tarefas',e); }
+  try{ renderTarefas(); bindTarefas(); loadTasks(function(){ renderTarefas(); if(window.renderVendas) window.renderVendas(); }); }catch(e){ console.error('F2 tarefas',e); }
   var be=document.getElementById('btn_export'); if(be&&!be.__wired){ be.__wired=true; be.addEventListener('click',doExport); }
 })();
 
@@ -344,10 +344,13 @@ function doExport(){
     if(!u) return; // login desligado (painel público): mostra tudo, sem chip
     var prof=(window.WAUTH&&WAUTH.profile&&WAUTH.profile())||null;
     var papel=prof&&prof.papel;
-    // área Dados só para admin
+    // vendas: esconder as abas de gestão e abrir direto no painel de Vendas
     if(papel!=='admin'){
-      var td=document.querySelector('.tab[data-v="dados"]'); if(td) td.style.display='none';
-      var vd=document.getElementById('v-dados'); if(vd) vd.style.display='none';
+      ['dados','geral','backlog','qual'].forEach(function(v){
+        var tb=document.querySelector('.tab[data-v="'+v+'"]'); if(tb) tb.style.display='none';
+        var vw=document.getElementById('v-'+v); if(vw){ vw.style.display='none'; vw.classList.remove('active'); }
+      });
+      var tv=document.querySelector('.tab[data-v="vendas"]'); if(tv) tv.click();
     }
     // chip de usuário + Sair na barra de topo
     var right=document.querySelector('.appbar .right');
@@ -567,3 +570,67 @@ function doExport(){
     });
   }catch(e){ console.error('F3 alertas',e); }
 })();
+
+// ================================================================
+// VENDAS — painel do vendedor (o que fazer hoje + esteira + cross-sell + equipe)
+// ================================================================
+window.renderVendas=function(){
+  try{
+    if(typeof F1==='undefined') return;
+    var fila=(F1.fila_renov)||[], tcs=(F1.top_cs)||[], vend=(window.COM&&COM.vendedores)||[];
+    var totVenc=0; fila.forEach(function(r){ totVenc+=(r.val||0); });
+    var totCross=0; tcs.forEach(function(o){ totCross+=(o[2]||0); });
+    var topR=fila[0]||{}, topC=tcs[0]||[];
+
+    // Bloco 1 — o que fazer hoje
+    var hoje=document.getElementById('v_hoje');
+    if(hoje){ hoje.innerHTML=
+      '<div class="card hero"><div class="label">A recuperar &middot; renovações vencidas</div>'
+        +'<div class="val">'+brlC(totVenc)+'</div><div class="note">'+int(fila.length)+' renovações de maior valor, prontas pra cobrança.</div></div>'
+      +'<div class="card kpi"><div class="label">Maior renovação parada</div><div class="val">'+brlC(topR.val||0)+'</div><div class="note">'+escH(topR.cli||'—')+'</div></div>'
+      +'<div class="card kpi"><div class="label">Potencial de cross-sell</div><div class="val">'+brlC(totCross)+'</div><div class="note">'+int(tcs.length)+' clientes com lacunas pra oferecer.</div></div>'
+      +'<div class="card kpi"><div class="label">Maior oportunidade</div><div class="val">'+brlC(topC[2]||0)+'</div><div class="note">'+escH(topC[0]||'—')+'</div></div>';
+      // cards recriados a cada render não são observados pelo motion → garantir visíveis
+      [].forEach.call(hoje.querySelectorAll('.card'),function(c){ c.classList.add('reveal'); });
+    }
+
+    // Bloco 2 — esteira (resumo por status + top 12)
+    var STMAP={'Aberto':'aberto','Em contato':'contato','Renovado':'renovado','Perdido':'perdido'};
+    var stats={'Aberto':{n:0,v:0},'Em contato':{n:0,v:0},'Renovado':{n:0,v:0},'Perdido':{n:0,v:0}};
+    fila.forEach(function(r){ var t=(window.TASKS&&window.TASKS[r.k])||{}; var s=t.status||'Aberto'; if(!stats[s]) s='Aberto'; stats[s].n++; stats[s].v+=(r.val||0); });
+    var rz=document.getElementById('v_resumo');
+    if(rz){ var mp=[['Aberto','A cobrar','aberto'],['Em contato','Em contato','contato'],['Renovado','Renovado','renovado'],['Perdido','Perdido','perdido']];
+      rz.innerHTML=mp.map(function(m){ var s=stats[m[0]];
+        return '<div class="est-st '+m[2]+'"><div class="en">'+s.n+'</div><div class="el">'+escH(m[1])+'</div><div class="ev">'+brlF(s.v)+'</div></div>'; }).join('');
+    }
+    var estb=document.getElementById('v_esteira');
+    if(estb){ estb.innerHTML=fila.slice(0,12).map(function(r){
+      var t=(window.TASKS&&window.TASKS[r.k])||{}; var st=t.status||'Aberto'; var cls=STMAP[st]||'aberto';
+      return '<tr><td class="cli">'+escH(r.cli)+'</td><td class="srv">'+escH(r.srv)+'</td>'
+        +'<td><span class="tsk-dias">'+Math.abs(r.dias)+' d</span></td><td class="n">'+brlF(r.val)+'</td>'
+        +'<td><span class="vbadge '+cls+'">'+escH(st)+'</span></td></tr>'; }).join('');
+    }
+    var ep=document.getElementById('v_est_pill'); if(ep) ep.textContent='as '+int(fila.length)+' de maior valor · '+brlC(totVenc)+' recuperáveis';
+
+    // Bloco 3 — cross-sell (top 12)
+    var cb=document.getElementById('v_cross');
+    if(cb){ cb.innerHTML=tcs.slice(0,12).map(function(o){
+      var gaps=String(o[1]||'').split(',').join(', ');
+      return '<tr><td class="cli">'+escH(o[0])+'</td><td>'+escH(gaps)+'</td><td class="n">'+brlF(o[2]||0)+'</td></tr>'; }).join('');
+    }
+    var cp=document.getElementById('v_cross_pill'); if(cp) cp.textContent=int(tcs.length)+' clientes · '+brlC(totCross)+' em potencial';
+
+    // Bloco 4 — desempenho da equipe (ranking por faturamento)
+    var rk=document.getElementById('v_rank');
+    if(rk){ var max=vend.reduce(function(m,v){ return Math.max(m,v[1]||0); },0)||1;
+      rk.innerHTML=vend.map(function(v,i){ var w=Math.max(3,Math.round((v[1]||0)/max*100));
+        return '<div class="vrank-row'+(i===0?' lead-row':'')+'"><div class="vn">'+escH(v[0])+'</div>'
+          +'<div class="vrank-bar" style="width:'+w+'%"></div><div class="vv">'+brlC(v[1]||0)+'</div></div>'; }).join('');
+    }
+
+    // botões → abas completas
+    var gr=document.getElementById('v_go_renov'); if(gr&&!gr.__w){ gr.__w=1; gr.addEventListener('click',function(){ var t=document.querySelector('.tab[data-v="renov"]'); if(t) t.click(); }); }
+    var gc=document.getElementById('v_go_cross'); if(gc&&!gc.__w){ gc.__w=1; gc.addEventListener('click',function(){ var t=document.querySelector('.tab[data-v="cross"]'); if(t) t.click(); }); }
+  }catch(e){ console.error('Vendas',e); }
+};
+window.renderVendas();
