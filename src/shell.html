@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Torre de Controle WTA — Painel de Decisão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+/* ===================================================================
+   Torre de Controle WTA — sistema visual (redesign)
+   Sofisticado & simples · marca vermelha WTA · monocromático + neutros
+   =================================================================== */
+:root{
+  /* marca */
+  --brand:#C1121F; --brand-deep:#98101A; --brand-bright:#E11D2A; --brand-ink:#fff;
+  /* superfícies (off-white morno) */
+  --plane:#F4F3EF; --plane-2:#EFEDE8; --card:#FFFFFF; --card-2:#FBFAF8;
+  /* tinta */
+  --ink:#17161A; --ink-2:#57554F; --muted:#928F87;
+  /* linhas / sombras */
+  --hair:rgba(20,18,24,.07); --line:#DAD7CE; --grid:#E9E7E0; --track:#EDEBE4; --bar-soft:#E2C3C6;
+  /* status */
+  --good:#0CA30C; --good-ink:#0A7D24; --warning:#E59500; --serious:#EC835A; --critical:#D03B3B;
+  /* rampa vermelha sequencial (mix, por magnitude) */
+  --r1:#98101A; --r2:#C1121F; --r3:#D64550; --r4:#E27E85; --r5:#EEB2B6; --r6:#C9C6BE;
+  /* elevação */
+  --sh-1:0 1px 2px rgba(20,18,24,.05), 0 2px 6px rgba(20,18,24,.04);
+  --sh-2:0 1px 2px rgba(20,18,24,.05), 0 6px 16px rgba(20,18,24,.06), 0 16px 40px rgba(20,18,24,.05);
+  --sh-brand:0 6px 20px rgba(193,18,31,.28);
+  --rad:16px; --rad-sm:11px;
+  --ease:cubic-bezier(.22,.7,.24,1);
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --plane:#0E0E0D; --plane-2:#131312; --card:#1B1B19; --card-2:#201F1D;
+  --ink:#FCFBF8; --ink-2:#C8C6BD; --muted:#8F8D86;
+  --hair:rgba(255,255,255,.08); --line:#37372F; --grid:#2A2A27; --track:#2A2A26; --bar-soft:#5A3A3D;
+  --brand:#E11D2A; --brand-deep:#B4141E; --brand-bright:#F23742;
+  --r1:#B4141E; --r2:#E11D2A; --r3:#E8555E; --r4:#EC7E85; --r5:#8A4247; --r6:#3A3A34;
+  --good:#28c24a; --good-ink:#3ad35f; --warning:#FAB219; --serious:#EC835A; --critical:#e5595f;
+  --sh-1:0 1px 2px rgba(0,0,0,.4); --sh-2:0 2px 8px rgba(0,0,0,.45), 0 18px 44px rgba(0,0,0,.4);
+  --sh-brand:0 6px 22px rgba(225,29,42,.32);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(1200px 480px at 88% -8%, rgba(193,18,31,.06), transparent 60%),
+    var(--plane);
+  color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; line-height:1.5;
+  font-feature-settings:"cv02","cv03","cv04","ss01";
+}
+::selection{background:rgba(193,18,31,.16)}
+
+/* ---------- topbar ---------- */
+.topbar{position:sticky;top:0;z-index:40}
+.appbar{
+  background:linear-gradient(103deg,var(--brand-deep),var(--brand) 46%,var(--brand-bright));
+  color:var(--brand-ink);padding:15px 26px;display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 8px 30px rgba(152,16,26,.22); position:relative; overflow:hidden;
+}
+.appbar::after{content:"";position:absolute;inset:0;background:
+  radial-gradient(600px 200px at 12% 0%, rgba(255,255,255,.14), transparent 70%);pointer-events:none}
+.brand{display:flex;align-items:center;gap:13px;position:relative}
+.logo{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.96);color:var(--brand);
+  font-weight:800;display:grid;place-items:center;font-size:15px;letter-spacing:.4px;
+  box-shadow:0 3px 12px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.5)}
+.brand h1{font-size:15.5px;margin:0;font-weight:700;letter-spacing:-.1px}
+.brand p{margin:2px 0 0;font-size:12px;opacity:.86;font-weight:450}
+.appbar .right{display:flex;align-items:center;gap:12px;font-size:12.5px;position:relative}
+.pill,.toggle{border-radius:999px;font-weight:600;font-size:11.5px;transition:all .25s var(--ease)}
+.appbar .pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);
+  color:#fff;padding:6px 13px;backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.22)}
+.appbar .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:#7CF2A9;
+  box-shadow:0 0 0 0 rgba(124,242,169,.7);animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(124,242,169,.55)}70%{box-shadow:0 0 0 7px rgba(124,242,169,0)}100%{box-shadow:0 0 0 0 rgba(124,242,169,0)}}
+.toggle{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);color:#fff;
+  padding:7px 14px;cursor:pointer;font-family:inherit}
+.toggle:hover{background:rgba(255,255,255,.24);transform:translateY(-1px)}
+.toggle:active{transform:translateY(0)}
+
+/* ---------- nav ---------- */
+.nav{display:flex;gap:4px;background:var(--card);border-bottom:1px solid var(--hair);
+  padding:0 16px;overflow-x:auto;box-shadow:var(--sh-1);scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.tab{position:relative;padding:14px 17px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;
+  border:none;background:none;white-space:nowrap;font-family:inherit;letter-spacing:-.1px;
+  transition:color .22s var(--ease)}
+.tab::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:2.5px;border-radius:3px 3px 0 0;
+  background:var(--brand);transform:scaleX(0);transform-origin:center;transition:transform .3s var(--ease)}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--brand)}
+.tab.active::after{transform:scaleX(1)}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1200px;margin:0 auto;padding:26px 24px 72px}
+.view{display:none}
+.view.active{display:block}
+.lead{font-size:13.5px;color:var(--ink-2);margin:4px 2px 20px;max-width:860px;line-height:1.65}
+.sec-title{font-size:11.5px;font-weight:700;letter-spacing:.14em;color:var(--muted);
+  text-transform:uppercase;margin:30px 2px 14px;display:flex;align-items:center;gap:12px}
+.sec-title::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--hair),transparent)}
+.grid{display:grid;gap:18px}
+.g4{grid-template-columns:1.5fr 1fr 1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+@media(max-width:920px){.g4,.g3,.g2{grid-template-columns:1fr}}
+
+/* ---------- cards ---------- */
+.card{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--hair);
+  border-radius:var(--rad);padding:20px 20px 18px;box-shadow:var(--sh-1);
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s var(--ease)}
+.card:hover{transform:translateY(-3px);box-shadow:var(--sh-2);border-color:rgba(193,18,31,.16)}
+.card h3{margin:0 0 3px;font-size:14px;font-weight:700;letter-spacing:-.2px}
+.card .sub{margin:0 0 15px;font-size:12px;color:var(--muted);line-height:1.5}
+.hero .label,.kpi .label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.09em}
+.hero{background:
+  radial-gradient(340px 150px at 100% 0%, rgba(193,18,31,.07), transparent 62%),
+  linear-gradient(180deg,var(--card),var(--card-2))}
+.hero .val{font-size:41px;font-weight:800;letter-spacing:-1.4px;margin:8px 0 3px;line-height:1;
+  background:linear-gradient(180deg,var(--ink),var(--ink-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .note{font-size:12.5px;color:var(--ink-2)}
+.kpi .val{font-size:27px;font-weight:800;letter-spacing:-.7px;margin-top:5px}
+.kpi .val small{font-size:13px;font-weight:600;color:var(--muted)}
+.kpi .val.c{color:var(--critical)} .kpi .val.s{color:var(--serious)} .kpi .val.w{color:var(--warning)}
+
+/* sinais */
+.signal{position:relative;overflow:hidden}
+.signal::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:linear-gradient(180deg,var(--c),color-mix(in srgb,var(--c) 55%,transparent))}
+.signal .tag{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
+  color:var(--c);text-transform:uppercase;letter-spacing:.06em}
+.signal .big{font-size:31px;font-weight:800;letter-spacing:-.8px;margin:9px 0 3px}
+.signal .desc{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--c);display:inline-block;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+
+/* ---------- bars ---------- */
+.bars{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.row{display:grid;grid-template-columns:150px 1fr auto;align-items:center;gap:11px}
+.row .rl{font-size:12px;color:var(--ink-2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.track{background:var(--track);border-radius:7px;height:15px;position:relative;overflow:hidden}
+.fill{height:15px;border-radius:7px;background:linear-gradient(90deg,var(--brand-deep),var(--brand));
+  min-width:3px;transform-origin:left center;box-shadow:0 1px 3px rgba(193,18,31,.28)}
+.fill[style*="bar-soft"]{background:var(--bar-soft)!important;box-shadow:none}
+.reveal .fill{animation:barGrow .95s var(--ease) both}
+@keyframes barGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.row .rv{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* colunas (faturamento por ano) */
+.cols{display:flex;align-items:flex-end;gap:16px;height:196px;padding-top:10px;border-bottom:1px solid var(--line)}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.col .bar{width:72%;max-width:48px;background:linear-gradient(180deg,var(--brand-soft,#E27E85),var(--track));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 45%,var(--card)),var(--track));
+  border-radius:7px 7px 0 0;min-height:4px;transform-origin:bottom;box-shadow:var(--sh-1)}
+.reveal .col .bar{animation:colGrow 1s var(--ease) both}
+@keyframes colGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.col .cv{font-size:11.5px;font-weight:700;margin-bottom:7px;font-variant-numeric:tabular-nums}
+.col .cx{font-size:11.5px;color:var(--muted);margin-top:8px;font-weight:500}
+.col.hl .bar{background:linear-gradient(180deg,var(--brand-bright),var(--brand-deep));box-shadow:var(--sh-brand)}
+
+/* ---------- donuts ---------- */
+@property --p{syntax:'<percentage>';inherits:false;initial-value:0%}
+.donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.donut{width:158px;height:158px;border-radius:50%;flex:none;position:relative;--p:0%;
+  background:conic-gradient(var(--brand) 0 var(--p),var(--track) var(--p) 100%);
+  transition:--p 1.15s var(--ease);filter:drop-shadow(0 6px 16px rgba(193,18,31,.16))}
+.donut::after{content:"";position:absolute;inset:24px;background:var(--card);border-radius:50%;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.06)}
+.donut .center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;z-index:2}
+.donut .center b{font-size:31px;font-weight:800;display:block;line-height:1;letter-spacing:-.8px}
+.donut .center span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.mdonut{width:158px;height:158px;border-radius:50%;flex:none;position:relative;background:var(--track);
+  filter:drop-shadow(0 6px 16px rgba(20,18,24,.12))}
+.mdonut::after{content:"";position:absolute;inset:28px;background:var(--card);border-radius:50%;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.06)}
+.reveal .mdonut,.reveal .donut{animation:bloom .9s var(--ease) both}
+@keyframes bloom{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
+.legend{display:flex;flex-direction:column;gap:11px;font-size:13px;min-width:160px}
+.legend .li{display:flex;align-items:center;gap:10px}
+.legend .sw{width:13px;height:13px;border-radius:4px;flex:none;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.legend b{font-variant-numeric:tabular-nums;margin-left:auto;font-weight:700}
+
+/* severidade (renovação buckets) */
+.sev{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.sev .s{display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:center}
+.sev .ic{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,.16)}
+.sev .st{height:8px;border-radius:6px;background:var(--track);position:relative;overflow:hidden}
+.sev .sf{position:absolute;inset:0;border-radius:6px;transform-origin:left}
+.reveal .sev .sf{animation:barGrow .9s var(--ease) both}
+.sev .sl{font-size:12px;color:var(--ink-2);font-weight:500}
+.sev .sv{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- tabelas ---------- */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--hair);vertical-align:middle}
+th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr{transition:background .18s var(--ease)}
+tbody tr:last-child td,tr:last-child td{border-bottom:none}
+.chip{display:inline-block;background:rgba(193,18,31,.09);color:var(--brand);border-radius:7px;
+  padding:2px 8px;font-size:11px;font-weight:700;margin:0 3px 2px 0}
+.badge{display:inline-block;background:var(--track);color:var(--ink-2);border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:700}
+.over{color:var(--critical);font-weight:700} .soon{color:var(--serious);font-weight:700}
+
+/* pills genéricas */
+.pill{display:inline-block;background:var(--track);color:var(--ink-2);border-radius:999px;
+  padding:3px 11px;font-size:10.5px;font-weight:600;margin-left:8px;letter-spacing:.02em}
+
+/* ---------- comercial KPIs (ver origem) ---------- */
+.ckgrid{grid-template-columns:repeat(auto-fit,minmax(238px,1fr))}
+.ckpi{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--hair);
+  border-radius:var(--rad);padding:18px 20px;cursor:pointer;box-shadow:var(--sh-1);position:relative;overflow:hidden;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease),border-color .3s var(--ease)}
+.ckpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--brand),var(--brand-bright));transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+.ckpi:hover{transform:translateY(-4px);box-shadow:var(--sh-2);border-color:rgba(193,18,31,.2)}
+.ckpi:hover::before{transform:scaleX(1)}
+.ckpi .lab{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.ckpi .v{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:7px 0 3px;white-space:nowrap}
+.ckpi .cp{font-size:11px;color:var(--muted);line-height:1.45}
+.ckpi .cmp{margin-top:11px;font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ckpi .dl{font-weight:800;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:11.5px}
+.dl.up{color:var(--good-ink);background:color-mix(in srgb,var(--good) 13%,transparent)}
+.dl.down{color:var(--critical);background:color-mix(in srgb,var(--critical) 13%,transparent)}
+.ckpi .vo{margin-top:12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);font-weight:700;
+  display:inline-flex;align-items:center;gap:4px;transition:gap .25s var(--ease)}
+.ckpi:hover .vo{gap:9px}
+.legrow{display:flex;gap:18px;margin-top:12px;font-size:12px;color:var(--ink-2)}
+.legrow .lk{display:flex;align-items:center;gap:7px;font-weight:500}
+.legrow .lk i{width:15px;height:3px;border-radius:2px;display:inline-block}
+
+/* linha (svg) desenho */
+.ln25{stroke-dasharray:1600;stroke-dashoffset:0}
+.ln26{stroke-dasharray:1600;stroke-dashoffset:1600;animation:draw 1.6s .25s var(--ease) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.ldot{opacity:0;animation:fadein .4s var(--ease) forwards}
+
+/* ---------- drill modal ---------- */
+#dov{position:fixed;inset:0;background:rgba(15,13,17,.5);backdrop-filter:blur(3px);display:none;
+  align-items:center;justify-content:center;z-index:100;padding:26px;opacity:0;transition:opacity .28s var(--ease)}
+#dov.open{display:flex;opacity:1}
+.dm{background:var(--card);border:1px solid var(--hair);border-radius:18px;max-width:880px;width:100%;
+  max-height:86vh;overflow:auto;padding:24px 26px 26px;box-shadow:0 30px 80px rgba(0,0,0,.35);
+  transform:translateY(16px) scale(.98);opacity:0;transition:transform .3s var(--ease),opacity .3s var(--ease)}
+#dov.open .dm{transform:none;opacity:1}
+.dm h4{margin:0 0 7px;font-size:18px;font-weight:800;letter-spacing:-.3px}
+.dm .flt{color:var(--muted);font-size:13px;margin:0 0 18px;line-height:1.55}
+.dm table{width:100%;border-collapse:collapse;font-size:12.5px}
+.dm thead th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:0 10px 10px;border-bottom:1px solid var(--hair)}
+.dm tbody td{padding:10px;border-bottom:1px solid var(--hair)}
+.dm tbody tr{animation:rowIn .4s var(--ease) both}
+.dm th.n,.dm td.n{text-align:right;font-variant-numeric:tabular-nums}
+.dm td.hl{color:var(--brand);font-weight:800}
+.dm .rod{margin-top:16px;padding-top:14px;border-top:1px solid var(--hair);font-weight:700;font-size:14px}
+.dm .nt{color:var(--muted);font-size:12px;margin-top:7px}
+.dm .x{float:right;background:var(--card-2);border:1px solid var(--hair);color:var(--ink);border-radius:10px;
+  padding:7px 14px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;transition:all .22s var(--ease)}
+.dm .x:hover{border-color:var(--brand);color:var(--brand)}
+
+/* ---------- rodapé + tooltip ---------- */
+.foot{margin-top:32px;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.8;
+  padding-top:22px;border-top:1px solid var(--hair)}
+#tip{position:fixed;z-index:60;pointer-events:none;background:var(--ink);color:var(--card);
+  padding:8px 11px;border-radius:9px;font-size:11.5px;opacity:0;transition:opacity .14s;white-space:nowrap;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);font-weight:500}
+
+/* ---------- motions: reveal (guardado por body.motion) ---------- */
+body.motion .card,body.motion .ckpi,body.motion .sec-title,body.motion .lead{
+  opacity:0;transform:translateY(18px);
+  transition:opacity .62s var(--ease),transform .62s var(--ease)}
+body.motion .reveal{opacity:1;transform:none}
+@keyframes rowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes fadein{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0!important;transition-duration:.001ms!important}
+  body.motion .card,body.motion .ckpi,body.motion .sec-title,body.motion .lead{opacity:1;transform:none}
+}
+
+.card.clk{cursor:pointer}
+.card.clk .vo{margin-top:12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:gap .2s var(--ease)}
+.card.clk:hover .vo{gap:9px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="appbar">
+    <div class="brand">
+      <div class="logo">WTA</div>
+      <div><h1>Torre de Controle · WTA Medicina do Trabalho</h1>
+        <p>Painel de decisão · <span id="dt"></span></p></div>
+    </div>
+    <div class="right">
+      <span class="pill" id="src_pill" style="background:rgba(255,255,255,.18);color:#fff">dados reais 2022–2026</span>
+      <button class="toggle" id="tg">◐ Tema</button>
+    </div>
+  </div>
+  <nav class="nav" id="nav">
+    <button class="tab active" data-v="comercial">Comercial</button>
+    <button class="tab" data-v="geral">Visão geral</button>
+    <button class="tab" data-v="renov">Renovações</button>
+    <button class="tab" data-v="backlog">Dinheiro parado</button>
+    <button class="tab" data-v="cross">Cross-sell</button>
+    <button class="tab" data-v="qual">Qualidade de dados</button>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <!-- ================= COMERCIAL ================= -->
+  <section class="view active" id="v-comercial">
+    <div class="sec-title">Diagnóstico comercial</div>
+    <p class="lead">Desempenho comercial de janeiro a julho de 2026 contra o mesmo período de 2025. Clique em <b>ver origem</b> em qualquer indicador ou linha da tabela para abrir o filtro exato e os contratos reais que formam o número.</p>
+    <div class="grid ckgrid" id="c_ckpis"></div>
+    <div class="sec-title">Evolução e composição</div>
+    <div class="grid g2">
+      <div class="card"><h3>Faturamento fechado por mês — 2025 vs 2026</h3>
+        <p class="sub">2026 abre muito acima de 2025 em quase todos os meses.</p>
+        <div id="c_linha"></div>
+        <div class="legrow"><span class="lk"><i style="background:var(--bar-soft)"></i>2025</span><span class="lk"><i style="background:var(--brand)"></i>2026</span></div></div>
+      <div class="card"><h3>Composição do faturamento por serviço — 2026</h3>
+        <p class="sub">A linha de Gestão domina o faturamento do ano.</p>
+        <div class="donut-wrap"><div class="mdonut" id="c_mixdonut"></div><div class="legend" id="c_mixleg"></div></div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Faturamento por vendedor — 2026 <span class="pill">jan–jul</span></h3>
+        <p class="sub">Passe o mouse para ver contratos e ticket de cada um.</p>
+        <div class="bars" id="c_vend"></div></div>
+      <div class="card"><h3>Desempenho por vendedor — 2026</h3>
+        <p class="sub">Clique numa linha para abrir os contratos daquele vendedor.</p>
+        <table><thead><tr><th>Vendedor</th><th class="n">Contratos</th><th class="n">Faturamento</th><th class="n">Ticket</th><th class="n">Renov.</th></tr></thead><tbody id="c_vtbl"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ================= VISÃO GERAL ================= -->
+  <section class="view" id="v-geral">
+    <div class="sec-title">Visão geral</div>
+    <div class="grid g4">
+      <div class="card hero"><div class="label">Faturamento rastreado</div>
+        <div class="val" id="h_fat"></div><div class="note" id="h_fatnote"></div></div>
+      <div class="card kpi"><div class="label">Ordens de serviço</div><div class="val" id="h_os"></div></div>
+      <div class="card kpi"><div class="label">Entregues</div><div class="val" id="h_ent"></div></div>
+      <div class="card kpi"><div class="label">Ticket médio</div><div class="val" id="h_tk"></div></div>
+    </div>
+    <div class="sec-title">3 sinais que a planilha esconde</div>
+    <div class="grid g3">
+      <div class="card signal" style="--c:var(--critical)"><span class="tag"><span class="dot"></span> Dinheiro parado</span>
+        <div class="big" id="s_backlog"></div><div class="desc" id="s_backlog_d"></div></div>
+      <div class="card signal" style="--c:var(--warning)"><span class="tag"><span class="dot"></span> Prazo de entrega</span>
+        <div class="big" id="s_prazo"></div><div class="desc" id="s_prazo_d"></div></div>
+      <div class="card signal" style="--c:var(--serious)"><span class="tag"><span class="dot"></span> Motor de renovação</span>
+        <div class="big" id="s_ren"></div><div class="desc" id="s_ren_d"></div></div>
+    </div>
+    <div class="sec-title">Onde o tempo e o dinheiro vão</div>
+    <div class="grid g2">
+      <div class="card"><h3>Onde o tempo vai — dias médios por etapa</h3>
+        <p class="sub">Só entregues. Dois gargalos concentram o ciclo: agendar a visita e elaborar o documento.</p>
+        <div class="bars" id="c_gargalos"></div></div>
+      <div class="card"><h3>Faturamento por ano</h3>
+        <p class="sub">2026 já é o maior ano da história — e ainda está em curso.</p>
+        <div class="cols" id="c_ano"></div></div>
+    </div>
+    <div class="sec-title">Operação</div>
+    <div class="grid g2">
+      <div class="card"><h3>Mix de documentos <span class="pill">volume</span></h3>
+        <p class="sub">Onde a operação realmente gasta horas técnicas.</p><div class="bars" id="c_mix"></div></div>
+      <div class="card"><h3>Novo × Renovação</h3>
+        <p class="sub">A fatia recorrente é a base de previsibilidade (e de valuation de franquia).</p>
+        <div class="donut-wrap"><div class="donut" id="c_donut"><div class="center"><b id="d_pct"></b><span>renovação</span></div></div>
+          <div class="legend" id="c_leg"></div></div></div>
+    </div>
+  </section>
+
+  <!-- ================= RENOVAÇÕES ================= -->
+  <section class="view" id="v-renov">
+    <div class="sec-title">Motor de renovação</div>
+    <p class="lead">A WTA tinha vencimento preenchido em só <b>0,9%</b> das OS. Recalculamos o vencimento de <b>todas</b> (data de entrega + validade legal por tipo) e ligamos a esteira de recorrência. Validades são ajustáveis pela WTA.</p>
+    <div class="grid g4">
+      <div class="card hero"><div class="label">Receita recorrente projetada · 12 meses</div>
+        <div class="val" id="r_rec"></div><div class="note">Renovações a disparar nos próximos 12 meses.</div></div>
+      <div class="card kpi"><div class="label">Renovações vencidas (em aberto)</div><div class="val c" id="r_venc"></div></div>
+      <div class="card kpi"><div class="label">Vencem em 90 dias</div><div class="val s" id="r_90"></div></div>
+      <div class="card kpi"><div class="label">R$ na janela de 90 dias</div><div class="val" id="r_val90"></div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>Renovações por janela</h3><p class="sub">Vencidos = renovação em aberto, recuperável.</p>
+        <div class="sev" id="r_buckets"></div></div>
+      <div class="card"><h3>Renováveis nos próximos 90 dias — por tipo</h3><p class="sub">Onde concentrar a abordagem comercial.</p>
+        <div class="bars" id="r_tipo"></div></div>
+    </div>
+    <div class="sec-title">Fila de renovação — mais urgentes</div>
+    <div class="card"><table><thead><tr><th>Cliente</th><th>Documento</th><th>Situação</th><th class="n">Valor</th></tr></thead>
+      <tbody id="r_tbl"></tbody></table></div>
+  </section>
+
+  <!-- ================= BACKLOG ================= -->
+  <section class="view" id="v-backlog">
+    <div class="sec-title">Radar de dinheiro parado</div>
+    <p class="lead">As OS "a realizar" são serviço vendido e não entregue — muitas vezes não faturado. Ranqueamos por <b>valor × tempo parado</b> (prestadores pesam mais, pela regra de urgência da WTA) para virar uma fila de trabalho.</p>
+    <div class="grid g4">
+      <div class="card hero"><div class="label">Valor represado no backlog</div>
+        <div class="val" id="b_val"></div><div class="note" id="b_note"></div></div>
+      <div class="card kpi"><div class="label">OS a realizar</div><div class="val" id="b_qtd"></div></div>
+      <div class="card kpi"><div class="label">Prestadores (prioridade)</div><div class="val w" id="b_prest"></div></div>
+      <div class="card kpi"><div class="label">Concentração top 20</div><div class="val" id="b_top20"></div></div>
+    </div>
+    <div class="sec-title">Prioridade de ataque — maior valor × tempo parado</div>
+    <div class="card"><table><thead><tr><th>Cliente</th><th>Documento</th><th class="n">Valor</th><th class="n">Parada há</th><th>Tipo</th></tr></thead>
+      <tbody id="b_tbl"></tbody></table></div>
+  </section>
+
+  <!-- ================= CROSS-SELL ================= -->
+  <section class="view" id="v-cross">
+    <div class="sec-title">Radar de cross-sell</div>
+    <p class="lead">A matriz cliente × documento mostra buracos de compliance — cada um é uma venda esperando um contato. O maior: a exigência nova de <b>psicossocial</b>, que quase ninguém fez ainda.</p>
+    <div class="grid g4">
+      <div class="card hero"><div class="label">Clientes sem psicossocial</div>
+        <div class="val" id="x_psico"></div><div class="note" id="x_psico_n"></div></div>
+      <div class="card kpi"><div class="label">Têm PCMSO, sem PGR</div><div class="val s" id="x_pcmso"></div></div>
+      <div class="card kpi"><div class="label">Têm PGR, sem PCMSO</div><div class="val" id="x_pgr"></div></div>
+      <div class="card kpi"><div class="label">Clientes na base</div><div class="val" id="x_cli"></div></div>
+    </div>
+    <div class="sec-title">Melhores oportunidades — clientes de maior valor com gaps</div>
+    <div class="card"><table><thead><tr><th>Cliente</th><th>Falta</th><th class="n">Valor histórico</th></tr></thead>
+      <tbody id="x_tbl"></tbody></table></div>
+  </section>
+
+  <!-- ================= QUALIDADE ================= -->
+  <section class="view" id="v-qual">
+    <div class="sec-title">Guardião de qualidade de dados</div>
+    <p class="lead">Problemas que a planilha nunca acusava e que a base nova detecta sozinha. Corrigir isso limpa a régua de decisão e prepara a migração para o sistema definitivo.</p>
+    <div class="grid g4">
+      <div class="card hero"><div class="label">OS sem CNPJ</div>
+        <div class="val" id="q_cnpj"></div><div class="note" id="q_cnpj_n"></div></div>
+      <div class="card kpi"><div class="label">Clientes duplicados (nome × códigos)</div><div class="val w" id="q_dup"></div></div>
+      <div class="card kpi"><div class="label">OS com valor zero</div><div class="val" id="q_zero"></div></div>
+      <div class="card kpi"><div class="label">Entregues sem data</div><div class="val" id="q_data"></div></div>
+    </div>
+    <div class="sec-title">Clientes com mais códigos duplicados</div>
+    <div class="card"><div class="bars" id="q_tbl"></div></div>
+  </section>
+
+  <div class="foot">
+    <b>Torre de Controle WTA</b> · base canônica de 12.219 OS (2022–2026) gerada por ETL.<br>
+    Versão de produção: dados no Supabase · atualização automática a partir da exportação do sistema.
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<div id="dov"><div class="dm">
+<button class="x" onclick="fechar()">Fechar</button>
+<h4 id="dm-t"></h4><p class="flt" id="dm-f"></p>
+<div id="dm-tb"></div><div class="rod" id="dm-r"></div><div class="nt" id="dm-n"></div>
+</div></div>
+
+<script>window.__SEED={"DATA":{"faturamento_total":5375000.39,"ticket_medio":439.89,"os_total":12219,"status":{"Entregue":11214,"A realizar":946},"valor_por_ano":{"2022":16170,"2023":1273814.01,"2024":1317526.41,"2025":1160041.89,"2026":1607448.08},"os_por_ano":{"2022":62,"2023":2867,"2024":3327,"2025":3210,"2026":2753},"mix":{"PCMSO":4721,"Adendo":2231,"PGR":2133,"LTCAT":786,"Treinamento":651,"psicossocial":296,"Gestão":258,"PPP":205,"CAT":186,"Ordem de Serviço":184},"novo_renov":{"Novo":7758,"Renovação":4461},"gargalos":[["Fechamento → Repasse",0,false],["Repasse → Visita",30.1,true],["Visita → Elaboração",1.6,false],["Elaboração",41.5,true],["Envio → Assinatura",2.9,false]],"lead":{"mediana":41,"media":98.3,"p90":295,"pct45":47,"pct90":31},"backlog":{"valor":525730.1,"qtd":946,"idade_media":65,"d90":142},"renov_cobertura":0.9,"drills":{"h_fat":{"titulo":"Faturamento rastreado — origem","filtro":"Soma do valor de todas as OS da base (2022–2026).","cols":["Cliente","Serviço","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","23/05/2026","R$ 27.600,00"]],"rodape":"Total: 12.219 OS · R$ 5.375.000,39","nota":"Amostra dos 5 maiores, de 12.219 registros."},"h_os":{"titulo":"Ordens de serviço — origem","filtro":"Todas as ordens de serviço registradas na base (2022–2026).","cols":["Cliente","Serviço","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","23/05/2026","R$ 27.600,00"]],"rodape":"Total: 12.219 OS","nota":"Amostra dos 5 maiores, de 12.219 registros."},"h_ent":{"titulo":"Entregues — origem","filtro":"OS com status Entregue.","cols":["Cliente","Serviço","Fechamento","Valor (R$)"],"rows":[["Instituto De Educacao Global","Gestão","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 33.280,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 23.560,00"],["Topnutri Nutricao Animal Industria","Gestão","03/09/2025","R$ 23.000,00"]],"rodape":"Total: 11.214 OS entregues","nota":"Amostra dos 5 maiores, de 11.214 registros."},"h_tk":{"titulo":"Ticket médio — origem","filtro":"Ticket = faturamento total dividido pelo número de OS. Amostra dos maiores contratos.","cols":["Cliente","Serviço","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","23/05/2026","R$ 27.600,00"]],"rodape":"Ticket: R$ 439,89 = R$ 5.375.000,39 / 12.219","nota":"Amostra dos 5 maiores, de 12.219 registros."},"s_prazo":{"titulo":"Prazo de entrega — origem","filtro":"OS entregues com prazo (fechamento → entrega) acima de 45 dias, das mais lentas para as mais rápidas.","cols":["Cliente","Serviço","Lead (dias)","Valor (R$)"],"rows":[["Transnorato Transportes Ltda","PCMSO","1.224","R$ 0,00"],["Transnorato Transportes Ltda","LTCAT","1.222","R$ 450,00"],["Transnorato Transportes Ltda","PGR","1.191","R$ 300,00"],["Residencial Helbor Renaissance","LTCAT","1.162","R$ 900,00"],["Original Transportes E Logistica E","PGR","1.150","R$ 500,00"]],"rodape":"47% das entregues acima de 45 dias · mediana 41 d, p90 295 d","nota":"Amostra dos 5 maiores, de 5.151 registros."}}},"F1":{"renovacao":{"rec12m":848565.9,"vencidos":1655,"vence90":392,"valor90":155438.59,"buckets":[["Vencido (em aberto)",1655,"critical"],["Vence em 0–30 dias",143,"serious"],["Vence em 31–60 dias",115,"warning"],["Vence em 61–90 dias",134,"good"]],"por_tipo":{"PGR":155,"PCMSO":208,"Treinamento":10,"LTCAT":16,"PGRTR":3}},"top_ren":[["CAIAQUE E COMPANHIA LTDA","PCMSO",-119,262.05],["MUNDO DAS EMBALAGENS LTDA","PCMSO",-117,276.98],["PAULO MAURICIO CARNEIRO SILVA E OUTROS","PCMSO",-117,329.55],["NEOSIGN COMUNICACAO VISUAL LTDA","PCMSO",-116,210],["CONCEITO ASSESSORIA E TREINAMENTOS LTDA","PCMSO",-116,329.55]],"backlog":{"valor":525730.1,"qtd":946,"prest_qtd":136,"prest_valor":151738.4,"top20":132565.39},"top_bk":[["A & M PNEUS E SERVICOS LTDA","Gestão",53760,110,true],["IGREEN ENERGIA COMERCIO E SERVICO S.A.","Treinamento online",27600,56,true],["ITT GERACAO COMERCIO E SERVICOS LTDA","PCA",2500,184,true],["MENA DIAGNOSTICOS E LABORATORIO DE ANALISES CLINICAS LTDA (TIBERY)","Treinamento",1000,589,false],["SELETIVE CONSULTORIA EM TALENTOS HUMANOS","PGR",523.1,897,false]],"crosssell":{"clientes":2143,"pcmso_sem_pgr":410,"pgr_sem_pcmso":10,"sem_psico":1700,"pct_psico":85.3},"top_cs":[["INSTITUTO DE EDUCACAO GLOBAL","psicossocial",45360],["LUCAS JOHANNES MARIA AERNOUDTS","PGR,psicossocial",39226.55],["INSTITUTO DE EDUCACAO GLOBAL","psicossocial",36000],["INSTITUTO DE EDUCACAO GLOBAL","psicossocial",35280],["TEXTIL ABRIL LTDA","psicossocial",33034.88]],"qualidade":{"multi":65,"extras":88,"sem_cnpj":6257,"pct_cnpj":51.2,"valor_zero":886,"sem_data":15,"dup":[["4W TELECOM COMERCIAL LTDA",8],["CRECHES COMUNITARIAS ASSOCIADAS DE UBERLANDIA",7],["INSTITUTO DE EDUCACAO GLOBAL",5],["V C S NEGOCIOS AGRICOLAS LTDA",3],["TETO LOCADORA DE MAQUINAS E EQUIPAMENTOS LTDA",3]]},"drills":{"r_rec":{"titulo":"Receita recorrente 12m — origem","filtro":"Renovações a vencer nos próximos 12 meses (0–365 dias), por valor.","cols":["Cliente","Serviço","Situação","Valor (R$)"],"rows":[["Viacao Sorriso De Minas Ltda","LTCAT","vence em 42d","R$ 6.000,00"],["Construtora Ouro Branco Ltda","Treinamento","vence em 165d","R$ 5.800,00"],["Persa Empreendimentos Imobiliaros ","LTCAT","vence em 311d","R$ 5.800,00"],["Condominio Do Edificio Residencial","Treinamento","vence em 188d","R$ 4.050,00"],["Rio Minas Conservacao E Limpeza Lt","LTCAT","vence em 24d","R$ 3.240,00"]],"rodape":"Receita recorrente projetada: R$ 848.565,90","nota":"Amostra dos 5 maiores, de 2.057 registros."},"r_venc":{"titulo":"Renovações vencidas — origem","filtro":"Renovações já vencidas e ainda em aberto (vencimento no passado), por valor.","cols":["Cliente","Serviço","Situação","Valor (R$)"],"rows":[["Sementes Fortuna S A","LTCAT","vencido há 507d","R$ 10.400,00"],["Paranaiba Fertilizantes Industria ","LTCAT","vencido há 192d","R$ 7.500,00"],["Super'Sol Industria E Comercio Ltd","LTCAT","vencido há 528d","R$ 6.900,00"],["Luca Yakasilo Lima (Fazenda Califo","LTCAT","vencido há 326d","R$ 5.800,00"],["Agile Transportes E Logistica Ltda","LTCAT","vencido há 15d","R$ 5.600,00"]],"rodape":"1.655 renovações vencidas em aberto","nota":"Amostra dos 5 maiores, de 1.655 registros."},"r_90":{"titulo":"Vencem em 90 dias — origem","filtro":"Renovações que vencem nos próximos 90 dias (0–90).","cols":["Cliente","Serviço","Situação","Valor (R$)"],"rows":[["Viacao Sorriso De Minas Ltda","LTCAT","vence em 42d","R$ 6.000,00"],["Rio Minas Conservacao E Limpeza Lt","LTCAT","vence em 24d","R$ 3.240,00"],["Prado E Neves Odontologos Associad","Treinamento","vence em 82d","R$ 1.600,00"],["Allumnobre Esquadrias De Aluminio ","LTCAT","vence em 80d","R$ 1.600,00"],["Ce & Cp Comercio De Utilidades E P","Treinamento","vence em 60d","R$ 1.425,00"]],"rodape":"392 renovações na janela de 90 dias","nota":"Amostra dos 5 maiores, de 392 registros."},"r_val90":{"titulo":"Valor na janela de 90 dias — origem","filtro":"Valor das renovações que vencem nos próximos 90 dias.","cols":["Cliente","Serviço","Situação","Valor (R$)"],"rows":[["Viacao Sorriso De Minas Ltda","LTCAT","vence em 42d","R$ 6.000,00"],["Rio Minas Conservacao E Limpeza Lt","LTCAT","vence em 24d","R$ 3.240,00"],["Prado E Neves Odontologos Associad","Treinamento","vence em 82d","R$ 1.600,00"],["Allumnobre Esquadrias De Aluminio ","LTCAT","vence em 80d","R$ 1.600,00"],["Ce & Cp Comercio De Utilidades E P","Treinamento","vence em 60d","R$ 1.425,00"]],"rodape":"R$ 155.438,59 em 392 renovações","nota":"Amostra dos 5 maiores, de 392 registros."},"b_val":{"titulo":"Valor represado no backlog — origem","filtro":"OS vendidas e ainda não entregues (status A realizar), priorizadas por valor × idade × prestador.","cols":["Cliente","Serviço","Idade (dias)","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","110","R$ 53.760,00"],["Igreen Energia Comercio E Servico ","Treinamento online","56","R$ 27.600,00"],["Itt Geracao Comercio E Servicos Lt","PCA","184","R$ 2.500,00"],["Mena Diagnosticos E Laboratorio De","Treinamento","589","R$ 1.000,00"],["Seletive Consultoria Em Talentos H","PGR","897","R$ 523,10"]],"rodape":"Total: R$ 525.730,10 em 946 OS","nota":"Amostra dos 5 maiores, de 946 registros."},"b_qtd":{"titulo":"OS a realizar — origem","filtro":"OS com status A realizar, das mais antigas para as mais novas.","cols":["Cliente","Serviço","Idade (dias)","Valor (R$)"],"rows":[["Comercial Amigo Mais Ltda","PCMSO","1.054","R$ 250,00"],["Hedivile Transportes Eireli","Adendo","925","R$ 50,00"],["Seletive Consultoria Em Talentos H","PGR","897","R$ 523,10"],["V C S Negocios Agricolas Ltda","PCMSO","897","R$ 209,24"],["Nautica Triangulo Industria E Com.","PCMSO","834","R$ 400,00"]],"rodape":"946 OS a realizar","nota":"Amostra dos 5 maiores, de 946 registros."},"b_prest":{"titulo":"Prestadores (prioridade) — origem","filtro":"OS a realizar de clientes prestadores de serviço (maior risco de ficar parada).","cols":["Cliente","Serviço","Idade (dias)","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","110","R$ 53.760,00"],["Igreen Energia Comercio E Servico ","Treinamento online","56","R$ 27.600,00"],["Itt Geracao Comercio E Servicos Lt","PCA","184","R$ 2.500,00"],["Prestadora Palmeiras Servicos Ltda","Gestão","8","R$ 15.460,00"],["A & M Pneus E Servicos Ltda","LTCAT","110","R$ 1.000,00"]],"rodape":"136 OS · R$ 151.738,40","nota":"Amostra dos 5 maiores, de 136 registros."},"b_top20":{"titulo":"Concentração top 20 — origem","filtro":"As 20 OS de maior prioridade do backlog (valor × idade × prestador).","cols":["Cliente","Serviço","Idade (dias)","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","110","R$ 53.760,00"],["Igreen Energia Comercio E Servico ","Treinamento online","56","R$ 27.600,00"],["Itt Geracao Comercio E Servicos Lt","PCA","184","R$ 2.500,00"],["Mena Diagnosticos E Laboratorio De","Treinamento","589","R$ 1.000,00"],["Seletive Consultoria Em Talentos H","PGR","897","R$ 523,10"]],"rodape":"Top 20: R$ 132.565,39","nota":"Amostra dos 5 maiores, de 20 registros."},"x_psico":{"titulo":"Clientes sem psicossocial — origem","filtro":"Clientes ativos (com PCMSO ou PGR) que ainda não fizeram o psicossocial, por valor.","cols":["Cliente","Gaps","Valor (R$)"],"rows":[["Instituto De Educacao Global","psicossocial","R$ 45.360,00"],["Lucas Johannes Maria Aernoudts","PGR,psicossocial","R$ 39.226,55"],["Instituto De Educacao Global","psicossocial","R$ 36.000,00"],["Instituto De Educacao Global","psicossocial","R$ 35.280,00"],["Textil Abril Ltda","psicossocial","R$ 33.034,88"]],"rodape":"1.700 clientes · 85,3% dos ativos","nota":"Amostra dos 5 maiores, de 1.700 registros."},"x_pcmso":{"titulo":"Têm PCMSO, sem PGR — origem","filtro":"Clientes com PCMSO mas sem PGR.","cols":["Cliente","Gaps","Valor (R$)"],"rows":[["Lucas Johannes Maria Aernoudts","PGR,psicossocial","R$ 39.226,55"],["Brasal Incorporacoes S A","PGR,psicossocial","R$ 9.045,00"],["Cabral Signs Comunicacao Visual Lt","PGR","R$ 8.223,41"],["Fialho Oliveira E Strack Rastreame","PGR,psicossocial","R$ 7.250,00"],["Triangulo Servicos E Solucoes Em G","PGR,psicossocial","R$ 6.272,36"]],"rodape":"410 clientes","nota":"Amostra dos 5 maiores, de 410 registros."},"x_pgr":{"titulo":"Têm PGR, sem PCMSO — origem","filtro":"Clientes com PGR mas sem PCMSO.","cols":["Cliente","Gaps","Valor (R$)"],"rows":[["Eurodrywall E Steel Solucoes Const","PCMSO","R$ 3.270,00"],["Plena Vet Distribuidora Ltda","PCMSO","R$ 3.160,00"],["Condominio Ambar Health Center","PCMSO,psicossocial","R$ 2.570,00"],["Nte Solucoes Agricolas Ltda","PCMSO,psicossocial","R$ 2.200,00"],["Lider Revestimentos E Acabamentos ","PCMSO,psicossocial","R$ 1.900,00"]],"rodape":"10 clientes","nota":"Amostra dos 5 maiores, de 10 registros."},"x_cli":{"titulo":"Clientes na base — origem","filtro":"Todos os clientes com código de cadastro, por valor acumulado.","cols":["Cliente","Nº de serviços","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","11","R$ 60.810,00"],["Instituto De Educacao Global","4","R$ 45.360,00"],["Igreen Energia Comercio E Servico ","7","R$ 43.377,41"],["Lucas Johannes Maria Aernoudts","5","R$ 39.226,55"],["Instituto De Educacao Global","4","R$ 36.000,00"]],"rodape":"2.143 clientes","nota":"Amostra dos 5 maiores, de 2.143 registros."},"q_cnpj":{"titulo":"OS sem CNPJ — origem","filtro":"OS sem CNPJ preenchido.","cols":["Cliente","Serviço","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","23/05/2026","R$ 27.600,00"]],"rodape":"6.257 OS sem CNPJ · 51,2%","nota":"Amostra dos 5 maiores, de 6.257 registros."},"q_dup":{"titulo":"Clientes duplicados — origem","filtro":"Clientes com o mesmo nome e mais de um código de cadastro.","cols":["Cliente","Códigos distintos"],"rows":[["4W Telecom Comercial Ltda","8"],["Creches Comunitarias Associadas De Uberl","7"],["Instituto De Educacao Global","5"],["V C S Negocios Agricolas Ltda","3"],["Teto Locadora De Maquinas E Equipamentos","3"]],"rodape":"65 clientes · 88 códigos extras","nota":"Amostra dos 5 maiores, de 65 registros."},"q_zero":{"titulo":"OS com valor zero — origem","filtro":"OS com valor igual a zero.","cols":["Cliente","Serviço","Fechamento","Status"],"rows":[["Ponto Mix Comercio De Importacao E","Gestão","13/07/2026","A realizar"],["Ponto Mix Comercio De Importacao E","PCMSO","13/07/2026","A realizar"],["Ponto Mix Express Ltda (Centro)","PCMSO","13/07/2026","A realizar"],["Ponto Mix Express Ltda","PCMSO","13/07/2026","A realizar"],["Ponto Mix Express Ltda","Gestão","13/07/2026","A realizar"]],"rodape":"886 OS com valor zero","nota":"Amostra dos 5 maiores, de 886 registros."},"q_data":{"titulo":"Entregues sem data — origem","filtro":"OS com status Entregue mas sem data de entrega registrada.","cols":["Cliente","Serviço","Fechamento","Valor (R$)"],"rows":[["Condominio Triad Vertical Residenc","PGR","17/12/2024","R$ 525,00"],["Udi Comercio De Materiais Didatico","PGR","10/03/2025","R$ 450,00"],["Diocese De Uberlandia - Paroquia S","PGR","10/11/2024","R$ 415,26"],["Sousa Logistica Ltda","PCMSO","29/01/2025","R$ 400,00"],["Hcs Logistica Ltda","PCMSO","07/02/2025","R$ 400,00"]],"rodape":"15 OS entregues sem data","nota":"Amostra dos 5 maiores, de 15 registros."}}},"COM":{"kpis":[{"label":"Faturamento fechado","val":"R$ 1.607.448,08","comp":"R$ 1.607.448,08 = soma de 2.753 contratos fechados em jan–jul 2026","delta":117.7,"ref":"R$ 738.425,08","dir":"cima","drill":"k_fat"},{"label":"Contratos fechados","val":"2.753","comp":"2.753 = ordens de serviço com fechamento entre jan e jul 2026","delta":33.3,"ref":"2.066","dir":"cima","drill":"k_ctr"},{"label":"Ticket médio","val":"R$ 583,89","comp":"R$ 583,89 = R$ 1.607.448,08 / 2.753 contratos","delta":63.4,"ref":"R$ 357,42","dir":"cima","drill":"k_tkt"},{"label":"Receita recorrente","val":"R$ 378.413,88","comp":"R$ 378.413,88 = soma de 892 renovações fechadas em jan–jul 2026","delta":20.7,"ref":"R$ 313.588,52","dir":"cima","drill":"k_rec"},{"label":"Participação de renovação","val":"32,4%","comp":"32,4% = 892 renovações sobre 2,753 contratos","delta":-31.6,"ref":"47,3%","dir":"cima","drill":"k_par"}],"mensal":{"labels":["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"],"s2025":[87661,165580,120445,83379,101196,91988,88176,85951,80108,112135,81155,62567],"s2026":[294123,133673,233508,175185,207121,304800,259038,null,null,null,null,null]},"mix":[["Gestão",641554],["PCMSO",204975],["psicossocial",196948],["PGR",177867],["Treinamento",121720],["Outros",264383]],"vendedores":[["Sidney",464059,258,1799,6.6],["Bruna",404660,967,418,54.3],["Izabelle",273482,695,393,49.2],["Renata",223630,277,807,0],["Graziele",217112,466,466,0.2],["Savio",24505,83,295,6]],"drills":{"k_fat":{"titulo":"Faturamento fechado — origem","filtro":"Soma do valor de todos os contratos com fechamento comercial entre 01/01 e 31/07/2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","Sidney","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","Sidney","23/05/2026","R$ 27.600,00"]],"rodape":"Total: 2.753 contratos · R$ 1.607.448,08","nota":"Amostra dos 5 maiores, de 2.753 contratos."},"k_ctr":{"titulo":"Contratos fechados — origem","filtro":"Contagem de OS com fechamento comercial entre 01/01 e 31/07/2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","Sidney","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","Sidney","23/05/2026","R$ 27.600,00"]],"rodape":"Total: 2.753 contratos","nota":"Amostra dos 5 maiores, de 2.753 contratos."},"k_tkt":{"titulo":"Ticket médio — origem","filtro":"Faturamento dividido pelo número de contratos do período.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","Sidney","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","Sidney","23/05/2026","R$ 27.600,00"]],"rodape":"Ticket: R$ 583,89 = R$ 1.607.448,08 / 2.753","nota":"Amostra dos 5 maiores, de 2.753 contratos."},"k_rec":{"titulo":"Receita recorrente — origem","filtro":"Soma dos contratos de renovação com fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Mirasol Servicos Eireli","Gestão","Izabelle","10/04/2026","R$ 10.995,20"],["Vitoria Transporte Rodoviario De C","Gestão","Izabelle","21/05/2026","R$ 10.340,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"]],"rodape":"Total: 892 renovações · R$ 378.413,88","nota":"Amostra dos 5 maiores, de 892 contratos."},"k_par":{"titulo":"Participação de renovação — origem","filtro":"Renovações sobre o total de contratos do período.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Mirasol Servicos Eireli","Gestão","Izabelle","10/04/2026","R$ 10.995,20"],["Vitoria Transporte Rodoviario De C","Gestão","Izabelle","21/05/2026","R$ 10.340,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"]],"rodape":"892 renovações / 2.753 contratos","nota":"Amostra dos 5 maiores, de 892 contratos."},"v_SIDNEY":{"titulo":"Sidney — contratos em 2026","filtro":"Contratos com vendedor = Sidney e fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["A & M Pneus E Servicos Ltda","Gestão","Sidney","30/03/2026","R$ 53.760,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 43.360,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 34.000,00"],["Instituto De Educacao Global","Gestão","Sidney","15/01/2026","R$ 33.280,00"],["Igreen Energia Comercio E Servico ","Treinamento online","Sidney","23/05/2026","R$ 27.600,00"]],"rodape":"Total: 258 contratos · R$ 464.059,39","nota":"Amostra dos 5 maiores, de 258 contratos."},"v_BRUNA":{"titulo":"Bruna — contratos em 2026","filtro":"Contratos com vendedor = Bruna e fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Bianchini Engenharia Ltda","Gestão","Bruna","13/04/2026","R$ 7.700,00"],["Mr Lima Desenvolvimento Pessoal Lt","Gestão","Bruna","05/03/2026","R$ 6.000,00"],["Mr Lima Auto Parts Distribuidora L","Gestão","Bruna","05/03/2026","R$ 6.000,00"],["Gomes Filho Obras E Construcoes Lt","Gestão","Bruna","01/07/2026","R$ 5.580,48"],["Diocese De Uberlandia - Curia Dioc","Gestão","Bruna","23/01/2026","R$ 5.280,00"]],"rodape":"Total: 967 contratos · R$ 404.659,95","nota":"Amostra dos 5 maiores, de 967 contratos."},"v_IZABELLE":{"titulo":"Izabelle — contratos em 2026","filtro":"Contratos com vendedor = Izabelle e fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Mirasol Servicos Eireli","Gestão","Izabelle","10/04/2026","R$ 10.995,20"],["Vitoria Transporte Rodoviario De C","Gestão","Izabelle","21/05/2026","R$ 10.340,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"],["Petroleum Lubrificantes Ltda","Gestão","Izabelle","18/03/2026","R$ 8.768,00"]],"rodape":"Total: 695 contratos · R$ 273.481,74","nota":"Amostra dos 5 maiores, de 695 contratos."},"v_RENATA":{"titulo":"Renata — contratos em 2026","filtro":"Contratos com vendedor = Renata e fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Brk Industria De Vestuario De Alta","Gestão","Renata","07/07/2026","R$ 17.070,00"],["Creches Comunitarias Associadas De","Gestão","Renata","02/06/2026","R$ 14.100,00"],["Creches Comunitarias Associadas De","Gestão","Renata","02/06/2026","R$ 13.700,00"],["Creches Comunitarias Associadas De","Gestão","Renata","02/06/2026","R$ 13.380,00"],["Posto De Molas E Reformadora Dois ","Gestão","Renata","05/05/2026","R$ 12.900,00"]],"rodape":"Total: 277 contratos · R$ 223.630,00","nota":"Amostra dos 5 maiores, de 277 contratos."},"v_GRAZIELE":{"titulo":"Graziele — contratos em 2026","filtro":"Contratos com vendedor = Graziele e fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Emplastic Industria E Comercio De ","psicossocial","Graziele","28/05/2026","R$ 4.500,00"],["Brazauto Acessorios E Auto Pecas L","Gestão","Graziele","12/06/2026","R$ 3.800,00"],["Metrolife Eletromedicina Ltda","psicossocial","Graziele","28/01/2026","R$ 3.190,00"],["Inga Veiculos Ltda","Consultoria","Graziele","21/05/2026","R$ 2.850,00"],["Marcos Da Costa Pereira Alimentaca","Consultoria","Graziele","20/05/2026","R$ 2.500,00"]],"rodape":"Total: 466 contratos · R$ 217.112,00","nota":"Amostra dos 5 maiores, de 466 contratos."},"v_SAVIO":{"titulo":"Savio — contratos em 2026","filtro":"Contratos com vendedor = Savio e fechamento em jan–jul 2026.","cols":["Cliente","Serviço","Vendedor","Fechamento","Valor (R$)"],"rows":[["Dexpress Encomendas Urgentes Ltda","LTCAT","Savio","26/01/2026","R$ 1.555,00"],["Centro Oeste Comercio Pet Store Ei","psicossocial","Savio","04/02/2026","R$ 1.320,00"],["Condominio Supreme Residence","LTCAT","Savio","08/01/2026","R$ 900,00"],["Condominio Park Martins","LTCAT","Savio","19/01/2026","R$ 900,00"],["Igreen Connect Ltda","LTCAT","Savio","20/02/2026","R$ 900,00"]],"rodape":"Total: 83 contratos · R$ 24.505,00","nota":"Amostra dos 5 maiores, de 83 contratos."}}}};</script>
+<script>
+(function(){
+  var SB="https://dopflrttbclvtyvzlysb.supabase.co/rest/v1/snapshot?select=payload,created_at,source_file&order=created_at.desc&limit=1";
+  var KEY="sb_publishable_pwV8JpbQjnpQY2JXh_6qyA_0DygnmuI";
+  function run(payload, meta){
+    var P = (payload && payload.DATA) ? payload : window.__SEED;
+    window.DATA=P.DATA; window.F1=P.F1; window.COM=P.COM;
+    if(meta && meta.created_at){ try{ var p=document.getElementById('src_pill'); if(p) p.textContent='atualizado '+new Date(meta.created_at).toLocaleDateString('pt-BR'); }catch(e){} }
+    try{ APP(); }catch(e){ console.error(e); }
+    try{ if(window.MOTION) window.MOTION(); }catch(e){}
+  }
+  var done=false;
+  var t=setTimeout(function(){ if(done)return; done=true; run(null,null); },6000);
+  fetch(SB,{headers:{apikey:KEY,Authorization:'Bearer '+KEY}})
+    .then(function(r){ return r.ok?r.json():[]; })
+    .then(function(rows){ if(done)return; done=true; clearTimeout(t); var row=rows&&rows[0]; run(row&&row.payload, row); })
+    .catch(function(){ if(done)return; done=true; clearTimeout(t); run(null,null); });
+})();
+</script>
+<script>
+function APP(){
+const nf=new Intl.NumberFormat('pt-BR');
+const int=n=>nf.format(Math.round(n));
+const brl=n=>'R$ '+nf.format(Math.round(n));
+function brlC(n){ if(n>=1e6)return 'R$ '+(n/1e6).toFixed(2).replace('.',',')+' mi';
+  if(n>=1e3)return 'R$ '+(n/1e3).toFixed(0)+' mil'; return 'R$ '+int(n); }
+const days=n=> (Number.isInteger(n)?n:n.toFixed(1).replace('.',','))+' d';
+const SC={good:'var(--good)',warning:'var(--warning)',serious:'var(--serious)',critical:'var(--critical)'};
+
+const tip=document.getElementById('tip');
+function bindTip(el,html){el.addEventListener('mousemove',e=>{tip.innerHTML=html;tip.style.opacity=1;
+  tip.style.left=Math.min(e.clientX+14,innerWidth-tip.offsetWidth-10)+'px';tip.style.top=(e.clientY+16)+'px';});
+  el.addEventListener('mouseleave',()=>tip.style.opacity=0);}
+
+function bars(elId,rows,{fmt,max,accentFn,tipFn}){
+  const el=document.getElementById(elId); const mx=max||Math.max(...rows.map(r=>r.v))||1; el.innerHTML='';
+  rows.forEach(r=>{
+    const row=document.createElement('div');row.className='row';
+    const soft=accentFn&&!accentFn(r);
+    row.innerHTML=`<div class="rl" title="${r.l}">${r.l}</div>
+      <div class="track"><div class="fill" style="width:${Math.max(2,r.v/mx*100)}%;${soft?'background:var(--bar-soft)':''}"></div></div>
+      <div class="rv">${fmt(r.v)}</div>`;
+    bindTip(row,tipFn?tipFn(r):`<b>${r.l}</b> — ${fmt(r.v)}`);
+    el.appendChild(row);
+  });
+}
+
+// ---------- VISÃO GERAL ----------
+document.getElementById('dt').textContent=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+document.getElementById('h_fat').textContent=brlC(DATA.faturamento_total);
+document.getElementById('h_fatnote').textContent='2026: '+brlC(DATA.valor_por_ano[2026])+' · maior ano registrado';
+document.getElementById('h_os').textContent=int(DATA.os_total);
+document.getElementById('h_ent').innerHTML=int(DATA.status.Entregue)+' <small>'+Math.round(DATA.status.Entregue/DATA.os_total*100)+'%</small>';
+document.getElementById('h_tk').textContent=brl(DATA.ticket_medio);
+document.getElementById('s_backlog').textContent=brlC(DATA.backlog.valor);
+document.getElementById('s_backlog_d').textContent=`${int(DATA.backlog.qtd)} OS a realizar · ${DATA.backlog.d90} paradas há +90 dias.`;
+document.getElementById('s_prazo').textContent=DATA.lead.pct45+'% > 45 dias';
+document.getElementById('s_prazo_d').textContent=`Mediana ${DATA.lead.mediana} d, média ${Math.round(DATA.lead.media)} d, p90 ${DATA.lead.p90} d.`;
+document.getElementById('s_ren').textContent=String(DATA.renov_cobertura).replace('.',',')+'% com vencimento';
+document.getElementById('s_ren_d').textContent='37% do volume é renovação, mas o vencimento quase não era registrado. Veja a aba Renovações.';
+bars('c_gargalos',DATA.gargalos.map(g=>({l:g[0],v:g[1],hl:g[2]})),{fmt:days,max:45,accentFn:r=>r.hl,
+  tipFn:r=>`<b>${r.l}</b><br>${days(r.v)} em média ${r.hl?'· gargalo':''}`});
+bars('c_mix',Object.entries(DATA.mix).map(([l,v])=>({l,v})),{fmt:int,tipFn:r=>`<b>${r.l}</b> — ${int(r.v)} OS`});
+(function(){const el=document.getElementById('c_ano');const ys=Object.keys(DATA.valor_por_ano);
+  const mx=Math.max(...ys.map(y=>DATA.valor_por_ano[y]));
+  el.innerHTML=ys.map(y=>{const v=DATA.valor_por_ano[y];const hl=(y==='2026');
+    return `<div class="col ${hl?'hl':''}"><div class="cv">${brlC(v)}</div>
+      <div class="bar" style="height:${Math.max(3,v/mx*140)}px" data-y="${y}"></div><div class="cx">${y}</div></div>`;}).join('');
+  [...el.querySelectorAll('.bar')].forEach(b=>{const y=b.dataset.y;
+    bindTip(b,`<b>${y}</b><br>${brl(DATA.valor_por_ano[y])} · ${int(DATA.os_por_ano[y])} OS`);});})();
+(function(){const nv=DATA.novo_renov.Novo,rn=DATA.novo_renov["Renovação"],tot=nv+rn;const pct=Math.round(rn/tot*100);
+  document.getElementById('c_donut').style.setProperty('--p',pct+'%');
+  document.getElementById('d_pct').textContent=pct+'%';
+  document.getElementById('c_leg').innerHTML=`<div class="li"><span class="sw" style="background:var(--brand)"></span> Renovação &nbsp;<b>${int(rn)}</b></div>
+    <div class="li"><span class="sw" style="background:var(--track)"></span> Novo &nbsp;<b>${int(nv)}</b></div>
+    <div class="li" style="color:var(--muted);font-size:12px">Total ${int(tot)} OS</div>`;})();
+
+// ---------- RENOVAÇÕES ----------
+const R=F1.renovacao;
+document.getElementById('r_rec').textContent=brlC(R.rec12m);
+document.getElementById('r_venc').textContent=int(R.vencidos);
+document.getElementById('r_90').textContent=int(R.vence90);
+document.getElementById('r_val90').textContent=brlC(R.valor90);
+(function(){const mx=Math.max(...R.buckets.map(b=>b[1]));
+  document.getElementById('r_buckets').innerHTML=R.buckets.map(b=>`
+    <div class="s"><div class="ic" style="background:${SC[b[2]]}"></div>
+      <div><div class="sl">${b[0]}</div><div class="st"><div class="sf" style="width:${b[1]/mx*100}%;background:${SC[b[2]]}"></div></div></div>
+      <div class="sv">${int(b[1])}</div></div>`).join('');})();
+bars('r_tipo',Object.entries(R.por_tipo).map(([l,v])=>({l,v})),{fmt:int,tipFn:r=>`<b>${r.l}</b> — ${int(r.v)} a renovar (90d)`});
+document.getElementById('r_tbl').innerHTML=F1.top_ren.map(r=>{const d=r[2];
+  const sit=d<0?`<span class="over">vencido há ${-d}d</span>`:`<span class="soon">vence em ${d}d</span>`;
+  return `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${sit}</td><td class="n">${brl(r[3])}</td></tr>`;}).join('');
+
+// ---------- BACKLOG ----------
+const B=F1.backlog;
+document.getElementById('b_val').textContent=brlC(B.valor);
+document.getElementById('b_note').textContent=`${int(B.qtd)} OS a realizar · serviço vendido e não entregue.`;
+document.getElementById('b_qtd').textContent=int(B.qtd);
+document.getElementById('b_prest').innerHTML=int(B.prest_qtd)+' <small>'+brlC(B.prest_valor)+'</small>';
+document.getElementById('b_top20').textContent=brlC(B.top20);
+document.getElementById('b_tbl').innerHTML=F1.top_bk.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td>
+  <td class="n">${brl(r[2])}</td><td class="n">${int(r[3])} d</td>
+  <td>${r[4]?'<span class="badge">prestador</span>':''}</td></tr>`).join('');
+
+// ---------- CROSS-SELL ----------
+const X=F1.crosssell;
+document.getElementById('x_psico').textContent=int(X.sem_psico);
+document.getElementById('x_psico_n').textContent=`${String(X.pct_psico).replace('.',',')}% dos clientes ativos ainda não fizeram o psicossocial.`;
+document.getElementById('x_pcmso').textContent=int(X.pcmso_sem_pgr);
+document.getElementById('x_pgr').textContent=int(X.pgr_sem_pcmso);
+document.getElementById('x_cli').textContent=int(X.clientes);
+document.getElementById('x_tbl').innerHTML=F1.top_cs.map(r=>{
+  const chips=r[1].split(',').map(g=>`<span class="chip">${g}</span>`).join('');
+  return `<tr><td>${r[0]}</td><td>${chips}</td><td class="n">${brl(r[2])}</td></tr>`;}).join('');
+
+// ---------- QUALIDADE ----------
+const Q=F1.qualidade;
+document.getElementById('q_cnpj').textContent=String(Q.pct_cnpj).replace('.',',')+'%';
+document.getElementById('q_cnpj_n').textContent=`${int(Q.sem_cnpj)} OS sem CNPJ — trava conciliação e integração.`;
+document.getElementById('q_dup').innerHTML=int(Q.multi)+' <small>+'+int(Q.extras)+' códigos</small>';
+document.getElementById('q_zero').textContent=int(Q.valor_zero);
+document.getElementById('q_data').textContent=int(Q.sem_data);
+bars('q_tbl',Q.dup.map(d=>({l:d[0],v:d[1]})),{fmt:v=>int(v)+' códigos',tipFn:r=>`<b>${r.l}</b><br>${r.v} códigos diferentes p/ o mesmo cliente`});
+
+// ---------- nav + tema ----------
+document.getElementById('nav').addEventListener('click',e=>{const t=e.target.closest('.tab');if(!t)return;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('v-'+t.dataset.v).classList.add('active');window.scrollTo(0,0);});
+document.getElementById('tg').addEventListener('click',()=>{const r=document.documentElement;
+  r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';});
+
+// ===== COMERCIAL (aba 1) =====
+(function(){
+  if(typeof COM==='undefined') return;
+  var el=document.getElementById('c_ckpis');
+  el.innerHTML=COM.kpis.map(function(k){
+    var up=k.delta>=0, cls=(k.dir==='cima')?(up?'up':'down'):(up?'down':'up');
+    var ar=Math.abs(k.delta)<0.05?'▬':(up?'▲':'▼');
+    return '<div class="ckpi" data-d="'+k.drill+'"><div class="lab">'+k.label+'</div><div class="v">'+k.val+'</div>'
+      +'<div class="cp">'+k.comp+'</div>'
+      +'<div class="cmp"><span class="dl '+cls+'">'+ar+' '+Math.abs(k.delta).toFixed(1).replace('.',',')+'%</span>vs 2025 ('+k.ref+')</div>'
+      +'<div class="vo">ver origem ▸</div></div>';
+  }).join('');
+  el.querySelectorAll('.ckpi').forEach(function(c){c.addEventListener('click',function(){abrir(c.dataset.d);});});
+  document.getElementById('c_linha').innerHTML=svgLine(COM.mensal);
+  var mix=COM.mix, tot=mix.reduce(function(a,b){return a+b[1];},0);
+  var cols=['var(--r1)','var(--r2)','var(--r3)','var(--r4)','var(--r5)','var(--r6)'];
+  var acc=0,segs=[];
+  mix.forEach(function(m,i){var p=m[1]/tot*100;segs.push(cols[i]+' '+acc+'% '+(acc+p)+'%');acc+=p;});
+  document.getElementById('c_mixdonut').style.background='conic-gradient('+segs.join(',')+')';
+  document.getElementById('c_mixleg').innerHTML=mix.map(function(m,i){return '<div class="li"><span class="sw" style="background:'+cols[i]+'"></span> '+m[0]+' &nbsp;<b>'+brlC(m[1])+'</b></div>';}).join('');
+  bars('c_vend',COM.vendedores.map(function(v){return {l:v[0],v:v[1],n:v[2],tk:v[3]};}),
+    {fmt:brlC,tipFn:function(r){return '<b>'+r.l+'</b><br>'+brl(r.v)+' · '+int(r.n)+' contratos · ticket '+brl(r.tk);}});
+  document.getElementById('c_vtbl').innerHTML=COM.vendedores.map(function(v){
+    return '<tr class="drill" data-d="v_'+v[0].toUpperCase()+'"><td>'+v[0]+'</td><td class="n">'+int(v[2])+'</td><td class="n">'+brl(v[1])+'</td><td class="n">'+brl(v[3])+'</td><td class="n">'+String(v[4]).replace('.',',')+'%</td></tr>';
+  }).join('');
+  document.getElementById('c_vtbl').querySelectorAll('tr').forEach(function(tr){tr.addEventListener('click',function(){abrir(tr.dataset.d);});});
+})();
+
+function svgLine(m){
+  var W=560,H=210,pl=54,pr=12,pt=14,pb=24,iw=W-pl-pr,ih=H-pt-pb;
+  function axfmt(x){return x>=1e6?(x/1e6).toFixed(1).replace('.',',')+' mi':x>=1e3?Math.round(x/1e3)+' mil':'0';}
+  var all=m.s2025.concat(m.s2026).filter(function(x){return x!=null;});
+  var mx=Math.max.apply(null,all)*1.08,n=m.labels.length;
+  function X(i){return pl+iw*(i/(n-1));}
+  function Y(v){return pt+ih*(1-v/mx);}
+  function path(s){var d='',st=false;s.forEach(function(v,i){if(v==null){st=false;return;}d+=(st?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' ';st=true;});return d;}
+  var g='';
+  [0,0.5,1].forEach(function(f){var y=pt+ih*(1-f);g+='<line x1="'+pl+'" y1="'+y+'" x2="'+(W-pr)+'" y2="'+y+'" stroke="var(--grid)" stroke-width="1"/>';g+='<text x="'+(pl-6)+'" y="'+(y+3)+'" text-anchor="end" font-size="9" fill="var(--muted)">'+axfmt(mx*f)+'</text>';});
+  m.labels.forEach(function(l,i){if(i%2===0)g+='<text x="'+X(i)+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" fill="var(--muted)">'+l+'</text>';});
+  g+='<path class="ln25" d="'+path(m.s2025)+'" fill="none" stroke="var(--bar-soft)" stroke-width="2"/>';
+  g+='<path class="ln26" d="'+path(m.s2026)+'" fill="none" stroke="var(--brand)" stroke-width="3"/>';
+  m.s2026.forEach(function(v,i){if(v!=null)g+='<circle class="ldot" style="animation-delay:'+(1.05+i*0.09).toFixed(2)+'s" cx="'+X(i)+'" cy="'+Y(v)+'" r="3.6" fill="var(--brand)"/>';});
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" preserveAspectRatio="xMidYMid meet">'+g+'</svg>';
+}
+// ---------- drill universal: todo KPI abre a origem ----------
+window.DRILLS=Object.assign({},(window.COM&&COM.drills)||{},(window.DATA&&DATA.drills)||{},(window.F1&&F1.drills)||{});
+[['h_fat','h_fat'],['h_os','h_os'],['h_ent','h_ent'],['h_tk','h_tk'],['s_backlog','b_val'],['s_prazo','s_prazo'],['s_ren','r_venc'],['r_rec','r_rec'],['r_venc','r_venc'],['r_90','r_90'],['r_val90','r_val90'],['b_val','b_val'],['b_qtd','b_qtd'],['b_prest','b_prest'],['b_top20','b_top20'],['x_psico','x_psico'],['x_pcmso','x_pcmso'],['x_pgr','x_pgr'],['x_cli','x_cli'],['q_cnpj','q_cnpj'],['q_dup','q_dup'],['q_zero','q_zero'],['q_data','q_data']].forEach(function(p){
+  var el=document.getElementById(p[0]); if(!el)return; var card=el.closest('.card'); if(!card||card.classList.contains('clk'))return;
+  if(!window.DRILLS[p[1]])return;
+  card.classList.add('clk'); card.setAttribute('data-d',p[1]);
+  var vo=document.createElement('div'); vo.className='vo'; vo.textContent='ver origem ▸'; card.appendChild(vo);
+  card.addEventListener('click',function(){abrir(p[1]);});
+});
+function abrir(id){var d=(window.DRILLS&&window.DRILLS[id])||(window.COM&&COM.drills&&COM.drills[id]);if(!d)return;
+  document.getElementById('dm-t').textContent=d.titulo;
+  document.getElementById('dm-f').textContent=d.filtro;
+  var last=d.cols.length-1;
+  var h='<table><thead><tr>'+d.cols.map(function(c,i){return '<th class="'+(i===last?'n':'')+'">'+c+'</th>';}).join('')+'</tr></thead><tbody>';
+  d.rows.forEach(function(r){h+='<tr>'+r.map(function(c,i){return '<td class="'+(i===last?'n hl':'')+'">'+c+'</td>';}).join('')+'</tr>';});
+  h+='</tbody></table>';
+  document.getElementById('dm-tb').innerHTML=h;
+  document.getElementById('dm-r').textContent=d.rodape;
+  document.getElementById('dm-n').textContent=d.nota||'';
+  document.getElementById('dov').classList.add('open');
+}
+function fechar(){document.getElementById('dov').classList.remove('open');}
+document.getElementById('dov').addEventListener('click',function(e){if(e.target===this)fechar();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+window.fechar=fechar;
+}
+</script>
+<script>
+/* Torre de Controle WTA — camada de motion (reveal + count-up + sweep) */
+window.MOTION = function () {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  document.body.classList.add('motion');
+
+  // ---- count-up de números "limpos" (ignora textos com múltiplos números) ----
+  function countUp(el) {
+    if (el.dataset.cu) return;
+    var txt = el.textContent.trim();
+    var m = txt.match(/^(\D*?)(\d[\d.]*(?:,\d+)?)(\D*)$/);
+    if (!m) { el.dataset.cu = '1'; return; }
+    el.dataset.cu = '1';
+    var pre = m[1], numStr = m[2], suf = m[3];
+    var dec = (numStr.split(',')[1] || '').length;
+    var target = parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
+    if (!isFinite(target)) { el.textContent = txt; return; }
+    var fmt = function (v) { return pre + v.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suf; };
+    var dur = 1000, t0 = null;
+    function tick(t) {
+      if (!t0) t0 = t;
+      var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(target * e);
+      if (p < 1) requestAnimationFrame(tick); else el.textContent = txt;
+    }
+    el.textContent = fmt(0);
+    requestAnimationFrame(tick);
+  }
+  var CU = '.hero .val, .kpi .val, .signal .big, .ckpi .v';
+
+  // ---- re-dispara o sweep do donut (novo × renovação) ----
+  function sweepDonut(card) {
+    var d = card.querySelector && card.querySelector('.donut');
+    if (!d || d.dataset.sw) return;
+    d.dataset.sw = '1';
+    var target = (d.style.getPropertyValue('--p') || '0%').trim() || '0%';
+    d.style.setProperty('--p', '0%');
+    void d.offsetWidth;
+    requestAnimationFrame(function () { d.style.setProperty('--p', target); });
+  }
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      var el = e.target;
+      io.unobserve(el);
+      var sib = [].slice.call(el.parentNode.children).filter(function (c) { return c.matches && c.matches('.card,.ckpi'); });
+      var idx = sib.indexOf(el);
+      var delay = idx > 0 ? Math.min(idx, 6) * 55 : 0;
+      setTimeout(function () {
+        el.classList.add('reveal');
+        if (el.matches(CU)) countUp(el);
+        el.querySelectorAll(CU).forEach(countUp);
+        sweepDonut(el);
+      }, delay);
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+
+  document.querySelectorAll('.card, .ckpi, .sec-title, .lead').forEach(function (el) { io.observe(el); });
+};
+
+</script>
+</body>
+</html>

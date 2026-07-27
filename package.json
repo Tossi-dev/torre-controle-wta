@@ -1,0 +1,17 @@
+{
+  "name": "torre-controle-wta",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Torre de Controle WTA — painel de decisão + automação de dados para a WTA Medicina do Trabalho.",
+  "scripts": {
+    "etl": "node etl/etl.mjs",
+    "build": "python3 build/build.py"
+  },
+  "dependencies": {
+    "xlsx": "0.18.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

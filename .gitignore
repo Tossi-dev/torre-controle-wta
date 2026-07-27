@@ -1,0 +1,16 @@
+# dependências
+node_modules/
+
+# dados-fonte (planilhas do cliente — NÃO versionar dados reais)
+data/
+*.xlsx
+*.xls
+
+# ambiente / segredos
+.env
+.env.*
+.vercel
+
+# temporários
+*.log
+.DS_Store
