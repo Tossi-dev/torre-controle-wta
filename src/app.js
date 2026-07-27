@@ -212,6 +212,17 @@ function renderTarefas(){
       +'</tr>';
   });
   tb.innerHTML=h;
+  renderResumo();
+}
+function renderResumo(){
+  var el=document.getElementById('r_resumo'); if(!el) return;
+  var fila=(window.F1&&F1.fila_renov)||[];
+  var stats={'Aberto':{n:0,v:0},'Em contato':{n:0,v:0},'Renovado':{n:0,v:0},'Perdido':{n:0,v:0}};
+  fila.forEach(function(r){ var t=window.TASKS[r.k]||{}; var s=t.status||'Aberto'; if(!stats[s]) s='Aberto'; stats[s].n++; stats[s].v+=(r.val||0); });
+  var map=[['Aberto','A cobrar','aberto'],['Em contato','Em contato','contato'],['Renovado','Renovado','renovado'],['Perdido','Perdido','perdido']];
+  el.innerHTML=map.map(function(m){ var s=stats[m[0]];
+    return '<div class="est-st '+m[2]+'"><div class="en">'+s.n+'</div><div class="el">'+escH(m[1])+'</div><div class="ev">'+brlF(s.v)+'</div></div>';
+  }).join('');
 }
 
 function bindTarefas(){
@@ -227,6 +238,7 @@ function bindTarefas(){
     else if(e.target.classList.contains('tsk-dt')) cur.data_retorno=e.target.value||null;
     window.TASKS[k]=cur;
     if(cur.status) tr.setAttribute('data-st',cur.status);
+    renderResumo();
     saveTask(k,ctx);
   });
 }
@@ -398,9 +410,56 @@ function doExport(){
       headers:Object.assign(authHdr(true),{'Prefer':'return=minimal'}), body:JSON.stringify([obj])});
   }
 
+  // ---- ingestão (upload de planilha → recalcula → grava snapshot → recarrega) ----
+  var _ingPayload=null;
+  function loadETL(cb){
+    function step2(){ if(window.WTA_ETL) return cb(); var s=document.createElement('script'); s.src='etl_browser.js'; s.onload=function(){cb();}; s.onerror=function(){cb(new Error('etl'));}; document.head.appendChild(s); }
+    if(window.XLSX) return step2();
+    var x=document.createElement('script'); x.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    x.onload=step2; x.onerror=function(){ cb(new Error('xlsx')); }; document.head.appendChild(x);
+  }
+  function ingStatus(t){ var e=document.getElementById('ing_status'); if(e) e.textContent=t||''; }
+  function ingConfirm(){
+    if(!_ingPayload) return;
+    var c=document.getElementById('ing_confirm'); if(c) c.disabled=true; ingStatus('Gravando…');
+    fetch(SB_URL+'/rest/v1/snapshot',{method:'POST',
+      headers:Object.assign(authHdr(true),{'Prefer':'return=minimal'}),
+      body:JSON.stringify([{ payload:_ingPayload.payload, source_file:_ingPayload.source_file }])})
+    .then(function(r){ if(r.ok){ ingStatus('Atualizado! Recarregando o painel…'); setTimeout(function(){ location.reload(); },1000); }
+      else { ingStatus('Erro ao gravar ('+r.status+').'+((r.status===401||r.status===403)?' Entre como admin.':'')); if(c) c.disabled=false; } })
+    .catch(function(){ ingStatus('Sem conexão ao gravar. Tente de novo.'); if(c) c.disabled=false; });
+  }
+  function doIngest(){
+    var fi=document.getElementById('ing_file'), f=fi&&fi.files&&fi.files[0], btn=document.getElementById('ing_btn'), pv=document.getElementById('ing_preview');
+    if(!f){ ingStatus('Escolha uma planilha (.xlsx).'); return; }
+    if(btn) btn.disabled=true; if(pv){ pv.hidden=true; pv.innerHTML=''; } ingStatus('Lendo e recalculando…');
+    loadETL(function(err){
+      if(err){ ingStatus('Não consegui carregar o motor (sem internet?). Tente de novo.'); if(btn) btn.disabled=false; return; }
+      f.arrayBuffer().then(function(buf){
+        try{
+          var p=window.WTA_ETL(buf, new Date(), 12);
+          _ingPayload={ payload:p, source_file:f.name };
+          var D=p.DATA, Q=p.F1.qualidade;
+          ingStatus('');
+          pv.hidden=false;
+          pv.innerHTML='<div class="ing-nums">'
+            +'<div><b>'+int(D.os_total)+'</b><span>OS na base</span></div>'
+            +'<div><b>'+brlC(D.faturamento_total)+'</b><span>faturamento total</span></div>'
+            +'<div><b>'+int(p.F1.renovacao.vencidos)+'</b><span>renov. vencidas</span></div>'
+            +'</div>'
+            +'<div class="ing-qual">Guardião de qualidade: '+int(Q.sem_cnpj)+' OS sem CNPJ · '+int(Q.valor_zero)+' com valor zero · '+int(Q.sem_data)+' entregues sem data. Confira antes de confirmar.</div>'
+            +'<button id="ing_confirm" class="btn-exp" type="button">Confirmar e atualizar o painel</button>';
+          document.getElementById('ing_confirm').addEventListener('click', ingConfirm);
+        }catch(ex){ ingStatus('Erro ao processar: '+(ex&&ex.message||ex)); }
+        if(btn) btn.disabled=false;
+      }).catch(function(){ ingStatus('Não consegui ler o arquivo.'); if(btn) btn.disabled=false; });
+    });
+  }
+
   // ---- init ----
   opt(LC_SRV, document.getElementById('lc_srv'));
   opt(LC_VEND, document.getElementById('lc_vend'));
+  var ib=document.getElementById('ing_btn'); if(ib&&!ib.__w){ ib.__w=1; ib.addEventListener('click', doIngest); }
   var gsSave=document.getElementById('gs_save');
   if(gsSave&&!gsSave.__w){ gsSave.__w=1; gsSave.addEventListener('click',function(){
     var u=(document.getElementById('gs_url').value||'').trim(); if(!u) return;

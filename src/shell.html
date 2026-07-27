@@ -406,6 +406,27 @@ body.locked{overflow:hidden}
   display:inline-flex;align-items:center;gap:5px;transition:gap .2s var(--ease)}
 .alerta:hover .ago{gap:9px}
 .alerta.crit{--al:var(--critical)} .alerta.serious{--al:var(--serious)} .alerta.warn{--al:var(--warning)} .alerta.op{--al:var(--good-ink)}
+
+/* ---------- F3.2: resumo da esteira de renovação ---------- */
+.esteira-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.est-st{border:1px solid var(--hair);border-radius:12px;padding:11px 13px;background:var(--card-2);position:relative;overflow:hidden;--es:var(--muted)}
+.est-st::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--es)}
+.est-st .en{font-size:20px;font-weight:800;letter-spacing:-.4px;color:var(--ink);line-height:1.1}
+.est-st .el{font-size:11px;font-weight:600;color:var(--ink-2);margin-top:1px}
+.est-st .ev{font-size:11px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.est-st.aberto{--es:var(--muted)} .est-st.contato{--es:var(--warning)} .est-st.renovado{--es:var(--good)} .est-st.perdido{--es:var(--critical)}
+
+/* ---------- F3.3: ingestão (upload de planilha) ---------- */
+.ing-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ing-row input[type=file]{flex:1;min-width:220px;padding:8px 10px;cursor:pointer}
+.ing-status{font-size:12.5px;color:var(--ink-2);margin-top:10px;font-weight:500;min-height:16px}
+.ing-preview{margin-top:14px;border-top:1px solid var(--hair);padding-top:14px}
+.ing-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.ing-nums>div{background:var(--card-2);border:1px solid var(--hair);border-radius:11px;padding:11px 13px}
+.ing-nums b{display:block;font-size:20px;font-weight:800;letter-spacing:-.4px;color:var(--ink)}
+.ing-nums span{font-size:11px;color:var(--muted)}
+.ing-qual{font-size:12px;color:var(--ink-2);margin:12px 0;line-height:1.5}
+#ing_confirm{width:100%;justify-content:center;margin-top:4px}
 </style>
 </head>
 <body>
@@ -544,6 +565,7 @@ body.locked{overflow:hidden}
     <div class="sec-title">Esteira de recuperação — vencidas viram tarefa</div>
     <p class="lead">As renovações vencidas de maior valor. Marque o <b>status</b>, defina o <b>responsável</b> e a <b>data de retorno</b> — tudo fica salvo e sincronizado, virando a fila de trabalho da equipe. <span class="pill">as 300 de maior valor · R$ 478.387,48 recuperáveis</span></p>
     <div class="card">
+      <div class="esteira-resumo" id="r_resumo"></div>
       <div class="tskbar">
         <span class="hint">Cada mudança é salva automaticamente.</span>
         <span class="tsk-sync" id="tsk_status">carregando…</span>
@@ -608,6 +630,18 @@ body.locked{overflow:hidden}
   <section class="view" id="v-dados">
     <div class="sec-title">Dados e planilha</div>
     <p class="lead">De onde vêm os números e como levá-los para fora do painel. Hoje o painel lê a base canônica de <b>12.219 OS</b>. Aqui você exporta tudo em Excel para trabalhar offline — e prepara a ponte para a planilha viva no Google Sheets.</p>
+
+    <div class="sec-title">Atualizar dados (upload de planilha)</div>
+    <p class="lead">Suba a planilha gerencial e o painel <b>recalcula sozinho</b> — sem exportação manual, sem digitação. O guardião de qualidade confere os números antes de você confirmar. <span class="pill">só admin</span></p>
+    <div class="card">
+      <div class="ing-row">
+        <input type="file" id="ing_file" accept=".xlsx,.xls" class="tsk-ctl">
+        <button id="ing_btn" class="btn-exp" type="button">Processar</button>
+      </div>
+      <div class="ing-status" id="ing_status"></div>
+      <div class="ing-preview" id="ing_preview" hidden></div>
+    </div>
+
     <div class="expgrid">
       <div class="card">
         <h3>Exportar para Excel</h3>
@@ -1039,6 +1073,17 @@ function renderTarefas(){
       +'</tr>';
   });
   tb.innerHTML=h;
+  renderResumo();
+}
+function renderResumo(){
+  var el=document.getElementById('r_resumo'); if(!el) return;
+  var fila=(window.F1&&F1.fila_renov)||[];
+  var stats={'Aberto':{n:0,v:0},'Em contato':{n:0,v:0},'Renovado':{n:0,v:0},'Perdido':{n:0,v:0}};
+  fila.forEach(function(r){ var t=window.TASKS[r.k]||{}; var s=t.status||'Aberto'; if(!stats[s]) s='Aberto'; stats[s].n++; stats[s].v+=(r.val||0); });
+  var map=[['Aberto','A cobrar','aberto'],['Em contato','Em contato','contato'],['Renovado','Renovado','renovado'],['Perdido','Perdido','perdido']];
+  el.innerHTML=map.map(function(m){ var s=stats[m[0]];
+    return '<div class="est-st '+m[2]+'"><div class="en">'+s.n+'</div><div class="el">'+escH(m[1])+'</div><div class="ev">'+brlF(s.v)+'</div></div>';
+  }).join('');
 }
 
 function bindTarefas(){
@@ -1054,6 +1099,7 @@ function bindTarefas(){
     else if(e.target.classList.contains('tsk-dt')) cur.data_retorno=e.target.value||null;
     window.TASKS[k]=cur;
     if(cur.status) tr.setAttribute('data-st',cur.status);
+    renderResumo();
     saveTask(k,ctx);
   });
 }
@@ -1225,9 +1271,56 @@ function doExport(){
       headers:Object.assign(authHdr(true),{'Prefer':'return=minimal'}), body:JSON.stringify([obj])});
   }
 
+  // ---- ingestão (upload de planilha → recalcula → grava snapshot → recarrega) ----
+  var _ingPayload=null;
+  function loadETL(cb){
+    function step2(){ if(window.WTA_ETL) return cb(); var s=document.createElement('script'); s.src='etl_browser.js'; s.onload=function(){cb();}; s.onerror=function(){cb(new Error('etl'));}; document.head.appendChild(s); }
+    if(window.XLSX) return step2();
+    var x=document.createElement('script'); x.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    x.onload=step2; x.onerror=function(){ cb(new Error('xlsx')); }; document.head.appendChild(x);
+  }
+  function ingStatus(t){ var e=document.getElementById('ing_status'); if(e) e.textContent=t||''; }
+  function ingConfirm(){
+    if(!_ingPayload) return;
+    var c=document.getElementById('ing_confirm'); if(c) c.disabled=true; ingStatus('Gravando…');
+    fetch(SB_URL+'/rest/v1/snapshot',{method:'POST',
+      headers:Object.assign(authHdr(true),{'Prefer':'return=minimal'}),
+      body:JSON.stringify([{ payload:_ingPayload.payload, source_file:_ingPayload.source_file }])})
+    .then(function(r){ if(r.ok){ ingStatus('Atualizado! Recarregando o painel…'); setTimeout(function(){ location.reload(); },1000); }
+      else { ingStatus('Erro ao gravar ('+r.status+').'+((r.status===401||r.status===403)?' Entre como admin.':'')); if(c) c.disabled=false; } })
+    .catch(function(){ ingStatus('Sem conexão ao gravar. Tente de novo.'); if(c) c.disabled=false; });
+  }
+  function doIngest(){
+    var fi=document.getElementById('ing_file'), f=fi&&fi.files&&fi.files[0], btn=document.getElementById('ing_btn'), pv=document.getElementById('ing_preview');
+    if(!f){ ingStatus('Escolha uma planilha (.xlsx).'); return; }
+    if(btn) btn.disabled=true; if(pv){ pv.hidden=true; pv.innerHTML=''; } ingStatus('Lendo e recalculando…');
+    loadETL(function(err){
+      if(err){ ingStatus('Não consegui carregar o motor (sem internet?). Tente de novo.'); if(btn) btn.disabled=false; return; }
+      f.arrayBuffer().then(function(buf){
+        try{
+          var p=window.WTA_ETL(buf, new Date(), 12);
+          _ingPayload={ payload:p, source_file:f.name };
+          var D=p.DATA, Q=p.F1.qualidade;
+          ingStatus('');
+          pv.hidden=false;
+          pv.innerHTML='<div class="ing-nums">'
+            +'<div><b>'+int(D.os_total)+'</b><span>OS na base</span></div>'
+            +'<div><b>'+brlC(D.faturamento_total)+'</b><span>faturamento total</span></div>'
+            +'<div><b>'+int(p.F1.renovacao.vencidos)+'</b><span>renov. vencidas</span></div>'
+            +'</div>'
+            +'<div class="ing-qual">Guardião de qualidade: '+int(Q.sem_cnpj)+' OS sem CNPJ · '+int(Q.valor_zero)+' com valor zero · '+int(Q.sem_data)+' entregues sem data. Confira antes de confirmar.</div>'
+            +'<button id="ing_confirm" class="btn-exp" type="button">Confirmar e atualizar o painel</button>';
+          document.getElementById('ing_confirm').addEventListener('click', ingConfirm);
+        }catch(ex){ ingStatus('Erro ao processar: '+(ex&&ex.message||ex)); }
+        if(btn) btn.disabled=false;
+      }).catch(function(){ ingStatus('Não consegui ler o arquivo.'); if(btn) btn.disabled=false; });
+    });
+  }
+
   // ---- init ----
   opt(LC_SRV, document.getElementById('lc_srv'));
   opt(LC_VEND, document.getElementById('lc_vend'));
+  var ib=document.getElementById('ing_btn'); if(ib&&!ib.__w){ ib.__w=1; ib.addEventListener('click', doIngest); }
   var gsSave=document.getElementById('gs_save');
   if(gsSave&&!gsSave.__w){ gsSave.__w=1; gsSave.addEventListener('click',function(){
     var u=(document.getElementById('gs_url').value||'').trim(); if(!u) return;

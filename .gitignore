@@ -14,3 +14,12 @@ data/
 # temporários
 *.log
 .DS_Store
+
+# nunca versionar segredos nem temporários de sync
+_to_delete/
+*.tgz
+*.pem
+*.pfx
+*.key
+*API*KEY*
+RESEND API KEY.txt
